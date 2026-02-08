@@ -116,13 +116,37 @@ Cross-Platform Image Handling: Verified that images taken on both Android and We
 
 Security Audit: Tested the Supabase Row Level Security (RLS) policies to ensure unauthorized users cannot upload or access biometric data.
 
-| Item          | Quantity  | Unit Cost  | Total  |
-| ------------- |:---------:|:----------:|-------:|
-| Sample item   | 5         | 10 LKR     | 50 LKR |
+## Budget
 
-## Conclusion
+| Item | Status | Cost (Rs.) |
+| :--- | :--- | :--- |
+| Raspberry Pi 4 Model B | Available | 26,000 |
+| Rpi4 camera module 3 | Available | 5,690 |
+| Two way mirror | Approx. | 8,500 |
+| Monitor screen | - | 12,000 |
+| Temperature & Humidity sensor (BME280) | - | 950 |
+| Light Intensity Sensor (OPT3001) | - | 995 |
+| Wooden / 3D Printed Frame | Approx. | 6,000 |
+| Mic | - | 950 |
+| Speakers | - | 8,570 |
+| Gesture sensor (ST GY-VL53L0XV2) x2 | - | 1,200 |
+| Addressable led strip (WS2812B) (2m) | - | 1,380 |
+| Esp32 (For the smart switch) | - | 1,280 |
+| Presence detector (HLK-LD2410) | - | 1,285 |
+| **Total** | | **Rs. 74,700** |
+| **Budget (excluding available items)** | | **Rs. 43,010** |
 
-What was achieved, future developments, commercialization plans
+## Commercialization Plans
+
+The project has been designed with a focus on cost-effectiveness and scalability, making it a viable candidate for a commercial consumer product:
+
+Modular DIY Kits: Offering the electronics (pre-configured Raspberry Pi, sensors, and camera) as a modular kit for tech enthusiasts to build into their own frames.
+
+Custom Luxury Models: Developing high-end, fully assembled mirrors with premium wooden or 3D-printed frames for the smart home and hospitality markets (e.g., hotels or fitness studios).
+
+Subscription-Based Customization: Creating a cloud platform where users can purchase and download premium "mirror skins" or advanced AI modules to further personalize their device.
+
+B2B Applications: Marketing specialized versions of the mirror for use as digital notice boards in offices, schools, or retail fitting rooms.
 
 ## Links
 
