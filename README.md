@@ -1,57 +1,34 @@
-___
-# DELETE THIS INSTRUCTIONS AND ADD AN INTRODUCTION ABOUT YOUR PROJECT
-___
+# ReflectOS: Smart Mirror & Caregiver Companion
 
-# eYY-3yp-project-template
+**ReflectOS** is an innovative hybrid IoT ecosystem designed to support independent living for elderly or less mobile individuals. By combining advanced computer vision, environmental sensing, and cloud connectivity, ReflectOS transforms a standard mirror into a proactive "Caregiver Companion," ensuring safety and connectivity from the comfort of the user's home.
 
-This is a sample repository you can use for your Embedded Systems project. Once you followed these instructions, remove the text and add a brief introduction to here.
+## Key Features
 
-### Enable GitHub Pages
+- **Remote Biometric Enrollment**: Caregivers can securely register users remotely by uploading a selfie via the mobile app, which instantly trains the mirror's local AI.
+- **"The Wind Guardian"**: An autonomous climate control system that monitors room temperature in real-time and automatically triggers cooling fans if conditions become unsafe.
+- **"The Puppeteer" Communication**: Family members can send text messages via the app that are spoken aloud and displayed on the mirror to ensure vital reminders are noticed.
+- **Non-Intrusive Monitoring**: A "Wellness Dashboard" allows caregivers to track room temperature, humidity, and activity logs without using invasive video cameras.
 
-You can put the things to be shown in GitHub pages into the _docs/_ folder. Both html and md file formats are supported. You need to go to settings and enable GitHub pages and select _main_ branch and _docs_ folder from the dropdowns, as shown in the below image.
+## Hardware Architecture
 
-![image](https://user-images.githubusercontent.com/11540782/98789936-028d3600-2429-11eb-84be-aaba665fdc75.png)
+The ReflectOS system is built around a central processing unit and peripheral modules that ensure intelligent interaction and environmental control:
 
-### Special Configurations
+| **Unit** | **Hardware Components** | **Primary Function** |
+| :--- | :--- | :--- |
+| **Unit A: Computing Core** | Raspberry Pi 4 Model B (4GB/8GB) | Runs the Node.js display interface and Python AI logic. |
+| **Unit B: Visual Interface** | Monitor Panel, Two-Way Acrylic Mirror | Displays the "Glass UI" (Clock, News, Alerts) to the user. |
+| **Unit C: Sensing Array** | BME280 Sensor, Pi Camera Module V2 | Captures environmental data (Temp/Humidity) and Facial Biometrics. |
+| **Unit D: Actuation Hub** | 5V Relay Module, DC Cooling Fan | Executes physical climate control actions based on sensor triggers. |
 
-These projects will be automatically added into [https://projects.ce.pdn.ac.lk](). If you like to show more details about your project on this site, you can fill the parameters in the file, _/docs/index.json_
+## Mobile App & Cloud Connectivity
 
-```
-{
-  "title": "This is the title of the project",
-  "team": [
-    {
-      "name": "Team Member Name 1",
-      "email": "email@eng.pdn.ac.lk",
-      "eNumber": "E/yy/xxx"
-    },
-    {
-      "name": "Team Member Name 2",
-      "email": "email@eng.pdn.ac.lk",
-      "eNumber": "E/yy/xxx"
-    },
-    {
-      "name": "Team Member Name 3",
-      "email": "email@eng.pdn.ac.lk",
-      "eNumber": "E/yy/xxx"
-    }
-  ],
-  "supervisors": [
-    {
-      "name": "Dr. Supervisor 1",
-      "email": "email@eng.pdn.ac.lk"
-    },
-    {
-      "name": "Supervisor 2",
-      "email": "email@eng.pdn.ac.lk"
-    }
-  ],
-  "tags": ["Web", "Embedded Systems"]
-}
-```
+- **Caregiver Dashboard**: Built with **Flutter**, the app provides a cross-platform interface for remote management, visualizing real-time environmental data and system status.
+- **Cloud Sync**: Powered by **Supabase**, the system synchronizes settings, biometric data (as byte streams), and sensor logs between the mirror and the mobile app in real-time.
+- **Remote Interaction**: Caregivers can toggle mirror modules (News, Calendar) and send voice messages from anywhere in the world.
 
-Once you filled this _index.json_ file, please verify the syntax is correct. (You can use [this](https://jsonlint.com/) tool).
+## Installation & Connectivity
 
-### Page Theme
+The system utilizes standard GPIO connections for sensors and relays, with a secure Wi-Fi link handling all encrypted data transmission between the IoT device and the Cloud.
 
-A custom theme integrated with this GitHub Page, which is based on [github.com/cepdnaclk/eYY-project-theme](https://github.com/cepdnaclk/eYY-project-theme). If you like to remove this default theme, you can remove the file, _docs/\_config.yml_ and use HTML based website.
+---
+*Developed as a 3rd Year Undergraduate Project in Computer Engineering.*
