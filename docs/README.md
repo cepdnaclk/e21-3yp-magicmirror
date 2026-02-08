@@ -4,7 +4,7 @@ permalink: index.html
 
 # Please update this with your repository name and project title
 repository-name: e21-3yp-magicmirror
-title: ReflectOS: Smart Mirror & Caregiver Companion
+title: "ReflectOS: Smart Mirror & Caregiver Companion"
 ---
 
 [comment]: # "This is the standard layout for the project, but you can clean this and use your own template"
