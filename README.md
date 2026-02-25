@@ -1,58 +1,103 @@
-# ReflectStudio: Intelligent Smart Mirror Platform
+# 🤖 MirrorMan Persona
 
-**ReflectStudio** is a hybrid AI–IoT smart mirror system designed to enhance everyday productivity, smart living, and assisted care. By combining computer vision, environmental sensing, AI interaction, and cloud connectivity, **ReflectStudio** transforms a standard mirror into an intelligent home companion that fits naturally into daily routines for all users.
-
----
-
-## Key Features
-
-- **Face Recognition & Profile Personalization** Users are identified through face recognition using local face encoding combined with cloud-based recognition via **AWS Rekognition**, enabling personalized dashboards and experiences.
-
-- **Remote Profile & Reminder Management** Guardians or family members can create user profiles and schedule reminders through the mobile app, which are displayed directly on the mirror.
-
-- **"Wind Guardian" – Smart Climate Awareness** Room temperature and humidity are continuously monitored, and cooling fans are automatically triggered when unusual or uncomfortable conditions are detected.
-
-- **AI Persona Interaction** An AI-powered conversational persona allows users—especially elderly individuals—to interact naturally using voice, providing companionship and easy access to information.
-
-- **Presence & Gesture-Based Control** Radar-based presence detection wakes the system automatically, while gesture and voice controls enable fully hands-free interaction.
-
-- **Smart Daily Services** Displays calendar events, weather updates, emails, and music playback, helping users make productive use of time while getting ready.
+An AI-powered voice assistant with an animated face that responds in the same language you speak. Built with Google Gemini's Live Audio API, it displays an idle/talking video loop synced to the AI's speech output.
 
 ---
 
-## Hardware Architecture
+## Features
 
-The **ReflectStudio** system is built around a central computing unit and multiple peripheral modules that enable intelligent interaction and smart environment control:
-
-| Unit | Hardware Components | Primary Function |
-|:---|:---|:---|
-| **Unit A: Computing Core** | Raspberry Pi 4 Model B | Runs system logic, AI processing, and smart mirror interface |
-| **Unit B: Visual Interface** | Display Panel, Two-Way Mirror | Displays the smart mirror UI and user information |
-| **Unit C: Sensing Array** | BME280, OPT3001, Camera Module 3, Radar Sensor | Captures environmental data, light levels, presence, and facial data |
-| **Unit D: Interaction Layer** | Gesture Sensor, Microphone | Enables touchless voice and gesture control |
-| **Unit E: Actuation Hub** | ESP32, Relay Module, Fan, LED Strip | Controls smart devices such as fans and lighting |
-
-
+- 🎙️ Real-time microphone input with live audio streaming to Gemini
+- 🔊 AI-generated voice responses played through your speakers
+- 🎬 Animated face — switches between an idle and talking video loop based on AI speech state
+- 🌍 Multilingual — automatically responds in the user's language
+- ⚡ Async architecture for low-latency audio I/O
 
 ---
 
-## Mobile App & Cloud Connectivity
+## Requirements
 
-- **Companion Mobile App** Built using **Flutter**, the mobile app provides a cross-platform interface for profile management, reminder scheduling, and remote monitoring.
+- Python 3.9+
+- A [Google Gemini API key](https://aistudio.google.com/app/apikey)
+- Two video files: `idle.mp4` and `talking.mp4` (looping face animations)
 
-- **Cloud Integration** The system uses **AWS S3** for image storage and **AWS Rekognition** for cloud-based facial recognition, ensuring secure and scalable identity management.
+### Python Dependencies
 
-- **Remote Interaction** Guardians can manage user profiles, send reminders, and control mirror features remotely through secure cloud APIs.
+Install all dependencies with:
 
+```bash
+pip install google-genai pyaudio opencv-python pygame numpy python-dotenv
+```
 
+> **Windows users:** You may need to install PyAudio via a pre-built wheel. Download from [here](https://www.lfd.uci.edu/~gohlke/pythonlibs/#pyaudio) or use `pipwin install pyaudio`.
 
 ---
 
-## Installation & Connectivity
+## Setup
 
-**ReflectStudio** uses standard GPIO connections for sensors and actuators.  
-All communication between the mirror, cloud services, and mobile app is handled via secure Wi-Fi connections with encrypted APIs, ensuring privacy and reliability.
+1. **Clone the repository**
+
+   ```bash
+   git clone https://github.com/your-username/polyglotbot.git
+   cd polyglotbot
+   ```
+
+2. **Create a `.env` file** in the project root:
+
+   ```env
+   GEMINI_API_KEY=your_api_key_here
+   ```
+
+3. **Add your video files** to the project root:
+   - `idle.mp4` — a looping animation for when the AI is listening
+   - `talking.mp4` — a looping animation for when the AI is speaking
+
+4. **Run the bot:**
+
+   ```bash
+   python main.py
+   ```
 
 ---
 
-*Developed as a 3rd Year Undergraduate Group Project in Computer Engineering, University of Peradeniya.*
+## How It Works
+
+| Component | Description |
+|---|---|
+| `VideoPlayer` | Runs in a separate thread, renders idle/talking video using Pygame + OpenCV |
+| `SinhalaBot` | Manages async audio I/O and the Gemini Live session |
+| `listen_mic` | Captures microphone audio, downsamples from 44100 Hz → ~14700 Hz, streams to Gemini |
+| `play_speaker` | Plays back AI audio at 24000 Hz; updates video state to talking/idle |
+| `send_loop` | Sends queued audio chunks to the Gemini session |
+| `receive_loop` | Receives audio response data from Gemini and queues it for playback |
+
+---
+
+## Configuration
+
+You can customize behavior by editing these constants at the top of `main.py`:
+
+| Constant | Default | Description |
+|---|---|---|
+| `MODEL` | `gemini-2.5-flash-native-audio-preview-12-2025` | Gemini model to use |
+| `CUSTOM_PROMPT` | `"Your name is PolyglotBot..."` | System prompt sent at session start |
+| `HARDWARE_IN_RATE` | `44100` | Microphone sample rate |
+| `HARDWARE_OUT_RATE` | `24000` | Speaker output sample rate |
+| `CHUNK` | `1024` | Audio buffer chunk size |
+
+---
+
+## Troubleshooting
+
+**No audio input/output:** Make sure your default system microphone and speakers are configured correctly. PyAudio uses system defaults.
+
+**PyAudio install fails on Windows:** Use `pipwin` or download a pre-built `.whl` from the link above.
+
+**Video not displaying correctly:** Ensure `idle.mp4` and `talking.mp4` are in the same directory as `main.py` and are valid video files.
+
+**API errors:** Double-check your `GEMINI_API_KEY` in the `.env` file and ensure the model name is still valid in the [Google AI documentation](https://ai.google.dev/docs).
+
+---
+
+## License
+
+MIT License — feel free to use and modify.
