@@ -1,0 +1,9 @@
+opencv-python
+pygame
+numpy
+pyaudio
+python-dotenv
+google-genai
+pvporcupine
+sounddevice
+soundfile
