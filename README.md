@@ -1,58 +1,108 @@
-# ReflectStudio: Intelligent Smart Mirror Platform
+# 🎵 Voice-Controlled Music Player
 
-**ReflectStudio** is a hybrid AI–IoT smart mirror system designed to enhance everyday productivity, smart living, and assisted care. By combining computer vision, environmental sensing, AI interaction, and cloud connectivity, **ReflectStudio** transforms a standard mirror into an intelligent home companion that fits naturally into daily routines for all users.
-
----
-
-## Key Features
-
-- **Face Recognition & Profile Personalization** Users are identified through face recognition using local face encoding combined with cloud-based recognition via **AWS Rekognition**, enabling personalized dashboards and experiences.
-
-- **Remote Profile & Reminder Management** Guardians or family members can create user profiles and schedule reminders through the mobile app, which are displayed directly on the mirror.
-
-- **"Wind Guardian" – Smart Climate Awareness** Room temperature and humidity are continuously monitored, and cooling fans are automatically triggered when unusual or uncomfortable conditions are detected.
-
-- **AI Persona Interaction** An AI-powered conversational persona allows users—especially elderly individuals—to interact naturally using voice, providing companionship and easy access to information.
-
-- **Presence & Gesture-Based Control** Radar-based presence detection wakes the system automatically, while gesture and voice controls enable fully hands-free interaction.
-
-- **Smart Daily Services** Displays calendar events, weather updates, emails, and music playback, helping users make productive use of time while getting ready.
+A Python-based music player you can control entirely with your voice. Just say a command and the music responds — no keyboard required.
 
 ---
 
-## Hardware Architecture
+## Features
 
-The **ReflectStudio** system is built around a central computing unit and multiple peripheral modules that enable intelligent interaction and smart environment control:
-
-| Unit | Hardware Components | Primary Function |
-|:---|:---|:---|
-| **Unit A: Computing Core** | Raspberry Pi 4 Model B | Runs system logic, AI processing, and smart mirror interface |
-| **Unit B: Visual Interface** | Display Panel, Two-Way Mirror | Displays the smart mirror UI and user information |
-| **Unit C: Sensing Array** | BME280, OPT3001, Camera Module 3, Radar Sensor | Captures environmental data, light levels, presence, and facial data |
-| **Unit D: Interaction Layer** | Gesture Sensor, Microphone | Enables touchless voice and gesture control |
-| **Unit E: Actuation Hub** | ESP32, Relay Module, Fan, LED Strip | Controls smart devices such as fans and lighting |
-
-
+- 🎤 Voice command recognition via microphone
+- 🎶 Plays MP3 and WAV files from a local folder
+- ⏯️ Supports play, pause, resume, and stop commands
+- 🔀 Randomly selects songs from your playlist
+- 🛑 Clean exit via voice command or keyboard interrupt
 
 ---
 
-## Mobile App & Cloud Connectivity
+## Requirements
 
-- **Companion Mobile App** Built using **Flutter**, the mobile app provides a cross-platform interface for profile management, reminder scheduling, and remote monitoring.
+- Python 3.7+
+- A working microphone
+- Internet connection (for Google Speech Recognition)
 
-- **Cloud Integration** The system uses **AWS S3** for image storage and **AWS Rekognition** for cloud-based facial recognition, ensuring secure and scalable identity management.
+### Dependencies
 
-- **Remote Interaction** Guardians can manage user profiles, send reminders, and control mirror features remotely through secure cloud APIs.
+Install required packages with:
 
+```bash
+pip install pygame SpeechRecognition pyaudio
+```
 
+> **Note for macOS/Linux users:** You may need to install `portaudio` before `pyaudio`:
+> ```bash
+> # macOS
+> brew install portaudio
+>
+> # Ubuntu/Debian
+> sudo apt-get install portaudio19-dev
+> ```
 
 ---
 
-## Installation & Connectivity
+## Setup
 
-**ReflectStudio** uses standard GPIO connections for sensors and actuators.  
-All communication between the mirror, cloud services, and mobile app is handled via secure Wi-Fi connections with encrypted APIs, ensuring privacy and reliability.
+1. **Clone or download** this repository.
+
+2. **Create a `music` folder** in the project root and add your `.mp3` or `.wav` files to it:
+
+```
+project/
+├── main.py
+├── README.md
+└── music/
+    ├── song1.mp3
+    ├── song2.wav
+    └── ...
+```
+
+3. **Run the player:**
+
+```bash
+python main.py
+```
 
 ---
 
-*Developed as a 3rd Year Undergraduate Group Project in Computer Engineering, University of Peradeniya.*
+## Voice Commands
+
+| Command         | Action                              |
+|-----------------|-------------------------------------|
+| `play`          | Plays a random song from the folder |
+| `pause`         | Pauses the current song             |
+| `resume`        | Resumes a paused song               |
+| `stop`          | Stops music completely              |
+| `exit` / `quit` | Stops music and closes the player   |
+
+---
+
+## Project Structure
+
+```
+project/
+├── main.py       # Main application — music player + voice control loop
+└── music/        # Folder containing your MP3/WAV music files
+```
+
+### Key Components
+
+**`VoiceMusicPlayer`** — handles all music playback using `pygame.mixer`. Loads all `.mp3` and `.wav` files from the specified folder and supports play, pause, resume, and stop.
+
+**`listen_for_commands()`** — runs a continuous listening loop using `SpeechRecognition`, processes spoken commands, and delegates actions to the player.
+
+---
+
+## Troubleshooting
+
+**No audio output?** Ensure your system audio is not muted and `pygame` is properly installed.
+
+**`pyaudio` install fails?** Install `portaudio` system dependency first (see Requirements above).
+
+**"Speech recognition service error"?** This usually means no internet connection. The player uses Google's online speech recognition API.
+
+**No songs found?** Make sure your `music/` folder exists and contains `.mp3` or `.wav` files.
+
+---
+
+## License
+
+MIT — free to use and modify.
