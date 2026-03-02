@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Magic Mirror</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #000;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: Arial, sans-serif;
+        }
+
+        #container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            background: #000;
+        }
+
+        #status {
+            position: absolute;
+            font-size: 48px;
+            font-weight: bold;
+            color: #00ff00;
+            text-shadow: 0 0 20px rgba(0, 255, 0, 0.8);
+            text-align: center;
+            z-index: 10;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+<div id="container">
+    <video id="video" playsinline autoplay muted loop></video>
+    <div id="status"></div>
+</div>
+
+<script>
+
+const socket = new WebSocket("ws://" + window.location.host + "/ws");
+const video = document.getElementById('video');
+const status = document.getElementById('status');
+
+socket.onmessage = function(event) {
+    const data = event.data;
+    
+    if (data === "active" || data === "listening") {
+        // Play idle video when listening
+        if (video.src !== '/static/idle.mp4') {
+            video.src = '/static/idle.mp4';
+            video.play().catch(err => console.log('Auto-play prevented:', err));
+        }
+    } else if (data === "talking") {
+        // Play talking video when AI is speaking
+        if (video.src !== '/static/talking.mp4') {
+            video.src = '/static/talking.mp4';
+            video.play().catch(err => console.log('Auto-play prevented:', err));
+        }
+    } else if (data === "idle") {
+        // Stop video when idle
+        video.pause();
+        video.src = '';
+    }
+};
+
+socket.onclose = function() {
+    status.textContent = '';
+    video.pause();
+    video.src = '';
+};
+
+</script>
+
+</body>
+</html>
