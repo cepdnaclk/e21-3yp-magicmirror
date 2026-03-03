@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Magic Mirror Interface</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div id="mirror-wrapper">
+        <div id="ui-layer">
+            <div class="widget top-left">
+                <h1 id="clock">00:00:00</h1>
+                <p id="date">Loading...</p>
+            </div>
+
+            <div class="widget top-right">
+                <div id="weather-box">
+                    <h2 id="temp">--°C</h2>
+                    <p id="desc">FETCHING WEATHER...</p>
+                    <p id="hum">HUMIDITY: --%</p>
+                </div>
+            </div>
+
+            <div class="widget bottom-left">
+                <h3>UPCOMING SCHEDULE</h3>
+                <ul id="calendar-list"></ul>
+            </div>
+        </div>
+
+        <div id="video-layer">
+            <video id="mirror-video" loop muted>
+                <source src="/static/idle.mp4" type="video/mp4">
+            </video>
+        </div>
+    </div>
+
+    <script>
+        const socket = new WebSocket('ws://' + window.location.host + '/ws');
+        
+        async function updateMirrorData() {
+            const response = await fetch('/api/data');
+            const data = await response.json();
+            
+            document.getElementById('temp').innerText = `${data.weather.temp}°C`;
+            document.getElementById('hum').innerText = `HUMIDITY: ${data.weather.humidity}%`;
+            document.getElementById('desc').innerText = data.weather.description.toUpperCase();
+
+            const list = document.getElementById('calendar-list');
+            list.innerHTML = data.calendar.map(item => 
+                `<li><strong>${item.time}</strong>: ${item.event}</li>`
+            ).join('');
+        }
+
+        socket.onmessage = (event) => {
+            const state = event.data;
+            const ui = document.getElementById('ui-layer');
+            const vid = document.getElementById('video-layer');
+            const v = document.getElementById('mirror-video');
+
+            if (state === "active") {
+                ui.style.opacity = "0"; vid.style.opacity = "1"; v.play();
+            } else if (state === "idle") {
+                ui.style.opacity = "1"; vid.style.opacity = "0"; v.pause();
+            }
+        };
+
+        // Update clock every second, weather every 10 mins
+        setInterval(() => {
+            const now = new Date();
+            document.getElementById('clock').innerText = now.toLocaleTimeString();
+            document.getElementById('date').innerText = now.toDateString();
+        }, 1000);
+
+        setInterval(updateMirrorData, 600000); 
+        updateMirrorData();
+    </script>
+</body>
+</html>
