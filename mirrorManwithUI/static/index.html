@@ -1,0 +1,259 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ReflectStudio | MirrorMan HUD</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;900&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div id="scan-line"></div>
+    <div id="mirror-wrapper" class="black-out">
+        <div id="ui-layer">
+            <div class="widget top-left combined-left-container">
+                <div class="glass-card" id="time-container">
+                    <div class="cyan-glow-text">SYSTEM TIME</div>
+                    <h1 id="clock">00:00:00</h1>
+                    <p id="date">INITIALIZING...</p>
+                </div>
+
+                <div class="glass-card calendar-widget">
+                    <div class="cyan-glow-text" id="month-name">MONTH_VIEW</div>
+                    <div id="calendar-grid"></div>
+                </div>
+            </div>
+
+            <div class="widget top-right glass-card">
+                <div class="cyan-glow-text">ENV_MONITOR</div>
+                <div id="weather-box">
+                    <h2 id="temp">--°C</h2>
+                    <p id="desc" class="status-text">FETCHING SENSOR DATA...</p>
+                    <p id="hum">HUMIDITY: --%</p>
+                </div>
+            </div>
+
+            <div class="widget bottom-right glass-card">
+                <h3 class="cyan-glow-text">PRIORITY_SCHEDULE</h3>
+                <ul id="calendar-list"></ul>
+            </div>
+
+        </div>
+
+        <div id="big-popup" class="glass-card">
+            <div class="cyan-glow-text">INCOMING_TRANSMISSION</div>
+            <div id="popup-text"></div>
+        </div>
+
+        <div id="video-layer">
+            <video id="mirror-video" loop muted playsinline>
+                <source src="static/idle.mp4" type="video/mp4">
+            </video>
+        </div>
+
+        <div class="widget bottom-center glass-card" id="notification-container">
+            <div class="cyan-glow-text">SYSTEM_NOTIFICATIONS</div>
+            <div id="notification-content">
+                <p class="status-text">NO NEW MESSAGES</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function updateTime() {
+            const now = new Date();
+            document.getElementById('clock').innerText = now.toLocaleTimeString('en-US', { hour12: false });
+            document.getElementById('date').innerText = now.toDateString().toUpperCase();
+        }
+        setInterval(updateTime, 1000);
+        updateTime();
+
+        const socket = new WebSocket('ws://' + window.location.host + '/ws');
+       
+        function addScheduleItem(item) {
+            const list = document.getElementById('calendar-list');
+            const time = item.time || '--:--';
+            const name = item.name || 'UNTITLED';
+            const date = item.date || 'TODAY';
+            const html = `<li>
+                        <span class="time-tag">${time}</span> ${name}
+                        <span class="schedule-meta">${date}</span>
+                    </li>`;
+            list.insertAdjacentHTML('afterbegin', html);
+        }
+
+        socket.onmessage = (event) => {
+            const v = document.getElementById('mirror-video');
+            const wrapper = document.getElementById('mirror-wrapper');
+            const notifyBox = document.getElementById('notification-content');
+            const popup = document.getElementById('big-popup');
+           
+            let payload = null;
+            try { payload = JSON.parse(event.data); } catch { payload = event.data; }
+
+            // 1. Presence Detection (සෙන්සර් එකෙන් එන දත්ත)
+            if (payload && payload.type === 'presence') {
+                if (payload.value === 'present') {
+                    wrapper.classList.remove('black-out');
+                } else {
+                    wrapper.classList.add('black-out');
+                    v.pause();
+                }
+                return;
+            }
+
+            // 2. Notifications & Reminders
+            if (payload && (payload.type === 'notification' || payload.type === 'reminder')) {
+                const rawMsg = payload.message;
+                const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+
+                // --- පියවර: ඕෆ් වෙලා තිබුණොත් ඔන් කිරීම (සහ දිගටම ඔන් වී තිබීම) ---
+                // මෙතනදී අපි ආපහු ඕෆ් කරන්න කියලා කිසිම දෙයක් ලියන්නේ නැහැ
+                wrapper.classList.remove('black-out');
+
+                // --- පියවර A: මැද ලොකුවට Pop-up කිරීම ---
+                popup.innerHTML = `
+                    <div class="cyan-glow-text">INCOMING_TRANSMISSION</div>
+                    <div id="popup-text">${rawMsg.toUpperCase()}</div>
+                    <div class="progress-container">
+                        <div class="progress-bar"></div>
+                    </div>
+                `;
+                popup.classList.add('show');
+
+                // --- පියවර B: තත්පර 10කට පසු Pop-up එක අයින් කිරීම ---
+                setTimeout(() => {
+                    popup.classList.remove('show');
+
+                    if (payload.type === 'notification') {
+                        const msg = rawMsg.toUpperCase();
+                        const newEntry = document.createElement('div');
+                        newEntry.className = 'history-item';
+                       
+                        const entryId = "msg-" + Date.now();
+                        newEntry.id = entryId;
+                        newEntry.innerHTML = `<span style="color:var(--cyan)">[${timestamp}]</span> > ${msg}`;
+                       
+                        if (notifyBox.innerText.includes("NO NEW MESSAGES")) notifyBox.innerHTML = "";
+                        notifyBox.insertBefore(newEntry, notifyBox.firstChild);
+
+                        // 10min පසු ඉවත් කිරීම
+                        setTimeout(() => {
+                            const itemToRemove = document.getElementById(entryId);
+                            if (itemToRemove) {
+                                itemToRemove.style.opacity = '0';
+                                setTimeout(() => {
+                                    itemToRemove.remove();
+                                    if (notifyBox.children.length === 0) {
+                                        notifyBox.innerHTML = '<p class="status-text">NO NEW MESSAGES</p>';
+                                    }
+                                }, 500);
+                            }
+                        }, 600000);
+                    }
+                    else if (payload.type === 'reminder') {
+                        try {
+                            let namePart = "UNTITLED", datePart = "TODAY", timePart = "NOW";
+                            if (rawMsg.includes("👉")) {
+                                let parts = rawMsg.split("👉");
+                                namePart = parts[1] ? parts[1].trim() : "UNTITLED";
+                                let dateTimePart = parts[0].replace(/📅 |Upcoming: /gi, "").trim();
+                                let dateTimeSplit = dateTimePart.split(/ at /i);
+                                datePart = dateTimeSplit[0] ? dateTimeSplit[0].trim() : "TODAY";
+                                timePart = dateTimeSplit[1] ? dateTimeSplit[1].trim() : "NOW";
+                            } else { namePart = rawMsg; }
+
+                            addScheduleItem({
+                                time: timePart.toUpperCase(),
+                                name: namePart.toUpperCase(),
+                                date: datePart.toUpperCase()
+                            });
+                        } catch (e) {
+                            addScheduleItem({ time: 'NOW', name: rawMsg.toUpperCase(), date: 'TODAY' });
+                        }
+                    }
+                }, 600000);
+                return;
+            }
+        };
+        async function updateMirrorData() {
+            try {
+                const response = await fetch('/api/data');
+                const data = await response.json();
+                document.getElementById('temp').innerText = `${data.weather.temp}°C`;
+                document.getElementById('hum').innerText = `HUM: ${data.weather.humidity}%`;
+                document.getElementById('desc').innerText = `> ${data.weather.description.toUpperCase()}`;
+
+                const list = document.getElementById('calendar-list');
+                const schedule = data.priority_schedule || data.calendar || [];
+                list.innerHTML = schedule.map(item => `<li>
+                    <span class="time-tag">${item.time || "--:--"}</span> ${item.name || "UNTITLED"}
+                    <span class="schedule-meta">${item.date || "TODAY"}</span>
+                </li>`).join('');
+            } catch (e) { console.log("Data fetch error:", e); }
+        }
+
+        async function updateWeather() {
+            const apiKey = "54f6c267a564aa8104435e8970c9a752";
+            const city = "Peradeniya,LK";
+            // units=metric කියන්නේ අපිට සෙල්සියස් (C) වලින් දත්ත ඕන නිසයි
+            const url = `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${apiKey}&units=metric`;
+
+            try {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error("Weather API Error");
+               
+                const data = await response.json();
+
+                // අගයන් වට කරලා ලබාගමු
+                const temp = Math.round(data.main.temp);
+                const humidity = data.main.humidity;
+
+                // Dashboard එකේ ID එකට අදාළව දත්ත ඇතුළත් කිරීම
+                // ඔයාගේ HTML එකේ ID 'temp-val' සහ 'hum-val' නෙවෙයි නම් ඒවා වෙනස් කරන්න
+                if(document.getElementById('temp-val')) {
+                    document.getElementById('temp-val').innerText = `${temp}°C`;
+                }
+                if(document.getElementById('hum-val')) {
+                    document.getElementById('hum-val').innerText = `${humidity}%`;
+                }
+
+                console.log(`Weather Updated: ${temp}°C, ${humidity}%`);
+
+            } catch (error) {
+                console.error("Weather data fetch error:", error);
+            }
+        }
+
+        // හැම විනාඩි 10කට වරක්ම Update වෙන්න (600,000ms)
+        setInterval(updateWeather, 600000);
+
+        // මුලින්ම පේජ් එක Load වෙද්දීත් පෙන්වන්න
+        updateWeather();
+
+        function buildCalendar() {
+            const now = new Date();
+            const month = now.getMonth();
+            const year = now.getFullYear();
+            const monthNames = ["JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"];
+            document.getElementById('month-name').innerText = `${monthNames[month]} ${year}`;
+            const grid = document.getElementById('calendar-grid');
+            grid.innerHTML = '';
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            for (let i = 0; i < firstDay; i++) grid.appendChild(document.createElement('div'));
+            for (let d = 1; d <= daysInMonth; d++) {
+                const div = document.createElement('div');
+                div.innerText = d;
+                div.classList.add('calendar-day');
+                if (d === now.getDate()) div.classList.add('today');
+                grid.appendChild(div);
+            }
+        }
+        buildCalendar();
+        updateMirrorData();
+        setInterval(updateMirrorData, 600000);
+    </script>
+</body>
+</html>

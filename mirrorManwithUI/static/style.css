@@ -1,0 +1,345 @@
+:root {
+    --cyan: #00d4ff;
+    --glass: rgba(255, 255, 255, 0.05);
+    --border: rgba(0, 212, 255, 0.2);
+}
+
+body {
+    margin: 0;
+    background-color: #000000;
+    color: #ffffff;
+    font-family: 'Rajdhani', sans-serif;
+    overflow: hidden;
+    text-transform: uppercase;
+}
+
+/* Futuristic Scanline Effect */
+#scan-line {
+    width: 100%;
+    height: 100px;
+    z-index: 100;
+    background: linear-gradient(0deg, transparent, rgba(0, 212, 255, 0.05), transparent);
+    position: absolute;
+    top: -100px;
+    animation: scan 8s linear infinite;
+    pointer-events: none;
+}
+
+@keyframes scan {
+    0% { top: -100px; }
+    100% { top: 100vh; }
+}
+
+#mirror-wrapper { position: relative; width: 100vw; height: 100vh; }
+
+/* Glass-morphism Cards */
+.glass-card {
+    background: var(--glass);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 20px;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
+}
+
+.widget { position: absolute; transition: all 1s cubic-bezier(0.4, 0, 0.2, 1); }
+
+/* --- HUD LAYOUT COORDINATES --- */
+
+/* TOP & MIDDLE LEFT: Combined Time and Calendar */
+.combined-left-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0px;
+    top: 40px;
+    left: 40px;
+}
+
+/* TOP RIGHT: ENV_MONITOR */
+.top-right {
+    top: 40px;
+    right: 40px;
+    width: 280px;
+    text-align: right;
+}
+
+/* BOTTOM LEFT: PRIORITY_SCHEDULE */
+.bottom-left {
+    bottom: 40px;
+    left: 40px;
+    width: 350px;
+}
+
+/* BOTTOM RIGHT: AI_STATUS */
+.bottom-right {
+    bottom: 40px;
+    right: 40px;
+    width: 280px;
+}
+
+/* --- WIDGET SPECIFIC SIZES --- */
+#time-container {
+    width: 420px; /* Fixed width for clock */
+    padding: 30px; /* Increase padding to push text away from the box edges */
+    border-right: 5px solid var(--cyan);
+    overflow: hidden;
+    white-space: nowrap;
+    display: flex;
+    flex-direction: column;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1); /* Removes the line between the two boxes */
+    border-radius: 4px 4px 0 0; /* Rounds only the top corners */
+}
+
+.calendar-widget {
+    width: 350px; /* Fixed width for calendar */
+    border-top: none;
+    border-radius: 0 0 4px 4px; /* Rounds only the bottom corners */
+}
+
+/* Typography */
+#clock {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 80px;
+    margin: 0;
+    font-weight: 900;
+    padding-right: 20px; /* Added small right padding for safety */
+    letter-spacing: -1.2px;
+    color: #fff;
+    text-shadow: 0 0 20px rgba(0, 212, 255, 0.6);
+}
+
+.cyan-glow-text {
+    color: var(--cyan);
+    font-size: 14px;
+    letter-spacing: 3px;
+    font-weight: 700;
+    margin-bottom: 10px;
+}
+
+#calendar-list { list-style: none; padding: 0; }
+#calendar-list li {
+    margin-bottom: 15px;
+    border-left: 3px solid var(--cyan);
+    padding-left: 15px;
+    font-size: 20px;
+    background: rgba(0, 212, 255, 0.05);
+}
+
+.time-tag { color: var(--cyan); font-weight: bold; margin-right: 10px; font-family: 'Orbitron'; }
+
+/* Calendar Grid */
+#calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 5px;
+    text-align: center;
+    font-size: 14px;
+    margin-top: 10px;
+}
+
+.grid-header {
+    color: var(--cyan);
+    font-weight: bold;
+    font-size: 12px;
+    padding-bottom: 5px;
+}
+
+.calendar-day {
+    padding: 5px 0;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.today {
+    background: var(--cyan);
+    color: #000;
+    font-weight: bold;
+    border-radius: 2px;
+    box-shadow: 0 0 10px var(--cyan);
+}
+
+/* AI Status Pulse */
+.pulse-dot {
+    width: 8px;
+    height: 8px;
+    background: var(--cyan);
+    border-radius: 50%;
+    display: inline-block;
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 0 rgba(0, 212, 255, 0.7); }
+    100% { transform: scale(1.2); opacity: 0; box-shadow: 0 0 0 10px rgba(0, 212, 255, 0); }
+}
+
+/* Layer Transitions */
+#ui-layer { opacity: 1; transition: opacity 0.8s ease, transform 0.8s ease; }
+#ui-layer.hidden { opacity: 0; transform: translateY(-20px); }
+
+#video-layer {
+    position: absolute; width: 100%; height: 100%;
+    display: flex; justify-content: center; align-items: center;
+    opacity: 0; transition: opacity 1.5s ease;
+    z-index: -1;
+}
+
+#video-layer.visible { opacity: 1; z-index: 10; }
+#mirror-video {
+    width: 70%;
+    filter: drop-shadow(0 0 30px rgba(0, 212, 255, 0.3)) brightness(1.1);
+}
+
+/* Position for the Notification Box */
+.bottom-center {
+    bottom: 40px;
+    left: 50%;
+    transform: translateX(-50%); /* Centers it horizontally */
+    width: 450px;
+    text-align: center;
+    border-top: 2px solid var(--cyan);
+}
+
+#notification-content {
+    font-size: 18px;
+    color: #fff;
+    min-height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Alert styling for specific notifications */
+.alert-text {
+    color: #ff4444;
+    text-shadow: 0 0 10px rgba(255, 68, 68, 0.5);
+    font-weight: bold;
+}
+
+/* Schedule Item Styling */
+.schedule-meta {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.5);
+    display: block;
+}
+
+/* Helper class to hide the entire dashboard */
+.black-out {
+    display: none !important;
+}
+
+/* Ensure the background is pitch black when UI is hidden */
+body {
+    background-color: black;
+    margin: 0;
+    overflow: hidden;
+}
+
+/* --- NEW ADDITIONS FOR POP-UP & HISTORY --- */
+
+/* මැද පේන ලොකු Pop-up එක */
+#big-popup {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.7);
+    width: 550px;
+    padding: 40px;
+    text-align: center;
+    z-index: 2000;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    border: 2px solid var(--cyan);
+    box-shadow: 0 0 50px rgba(0, 212, 255, 0.4);
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(15px);
+}
+
+#big-popup.show {
+    opacity: 1;
+    visibility: visible;
+    transform: translate(-50%, -50%) scale(1);
+}
+
+#popup-text {
+    font-size: 38px;
+    font-weight: 900;
+    color: #fff;
+    margin-top: 20px;
+    font-family: 'Orbitron', sans-serif;
+    text-shadow: 0 0 15px var(--cyan);
+    text-transform: uppercase;
+}
+
+/* පණිවිඩ පෝලිම (History List) සැකසීම */
+#notification-content {
+    display: flex;
+    flex-direction: column; /* එකකට යටින් එකක් වැටෙන්න */
+    gap: 8px;
+    max-height: 150px;
+    overflow-y: auto; /* මැසේජ් වැඩි වුණොත් scroll වෙන්න */
+    padding: 10px;
+    text-align: left;
+    justify-content: flex-start; /* මැසේජ් උඩ සිට පටන් ගන්න */
+    align-items: flex-start;
+}
+
+.history-item {
+    font-size: 15px;
+    border-left: 2px solid var(--cyan);
+    padding-left: 10px;
+    margin-bottom: 4px;
+    color: rgba(255, 255, 255, 0.9);
+    animation: slideIn 0.4s ease-out;
+    width: 100%;
+}
+
+@keyframes slideIn {
+    from { opacity: 0; transform: translateX(-10px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+/* Scrollbar එක ලස්සන කරන්න (Cyberpunk style) */
+#notification-content::-webkit-scrollbar {
+    width: 4px;
+}
+#notification-content::-webkit-scrollbar-thumb {
+    background: var(--cyan);
+}
+
+/* පරණ .black-out එක display:none තිබුණොත් video වැඩ කරන්නේ නැහැ,
+ඒ නිසා ඒක brightness(0) වලට මාරු කරමු */
+.black-out {
+    filter: brightness(0);
+    transition: filter 1s ease;
+}
+
+/* Blink effect for new messages */
+.blink-text {
+    animation: neon-blink 1.5s infinite;
+}
+
+@keyframes neon-blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.progress-container {
+    width: 100%;
+    height: 4px;
+    background: rgba(0, 212, 255, 0.1);
+    margin-top: 10px;
+}
+
+.progress-bar {
+    height: 100%;
+    background: var(--cyan);
+    width: 100%;
+    /* තත්පර 10ක් ඇතුළත බාර් එක 0 දක්වා අඩුවීම */
+    animation: shrink 10s linear forwards;
+}
+
+@keyframes shrink {
+    from { width: 100%; }
+    to { width: 0%; }
+}
