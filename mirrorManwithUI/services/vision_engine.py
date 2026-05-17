@@ -1,25 +1,23 @@
 import cv2
-import boto3
 import json
 import time
 import os
 import sys
 from datetime import datetime
-from dotenv import load_dotenv
-from picamera2 import Picamera2
+try:
+    from picamera2 import Picamera2
+except ImportError:
+    Picamera2 = None
+    print("Warning: picamera2 not found. Running in mock mode.")
 
-# Load environment variables (Make sure your .env file is correct)
-load_dotenv()
+from config.settings import AWS_REGION, BUCKET_NAME, COLLECTION_ID
+from config.aws_config import get_rekognition_client, get_s3_client
 
 # --- AWS CONFIG ---
-# If you don't use .env, you can replace these with your actual keys like before
-REGION = os.getenv("AWS_REGION")
-BUCKET_NAME = os.getenv("BUCKET_NAME")
-COLLECTION_ID = os.getenv("COLLECTION_ID")
 # Initialize AWS Clients
 print("--- Initializing AWS Services ---", flush=True)
-rekognition = boto3.client("rekognition", region_name=REGION)
-s3 = boto3.client("s3", region_name=REGION)
+rekognition = get_rekognition_client()
+s3 = get_s3_client()
 print("? AWS Services Connected.", flush=True)
 
 def send_alert_to_app(person_name, emotion):
@@ -49,6 +47,15 @@ def send_alert_to_app(person_name, emotion):
 def run_vision():
     # Initialize PiCamera2
     print("--- Starting PiCamera2 Hardware ---", flush=True)
+    if Picamera2 is None:
+        print("??? ReflectStudio Vision Engine (MOCK MODE - No Camera)...", flush=True)
+        try:
+            while True:
+                time.sleep(10) # Just idle since there's no camera
+        except KeyboardInterrupt:
+            print("\n--- Shutting down ReflectStudio ---", flush=True)
+            sys.exit()
+
     picam2 = Picamera2()
 
     # Optimized configuration for fast face detection
@@ -126,4 +133,3 @@ def run_vision():
 
 if __name__ == "__main__":
     run_vision()
-

@@ -222,11 +222,6 @@ body {
     display: block;
 }
 
-/* Helper class to hide the entire dashboard */
-.black-out {
-    display: none !important;
-}
-
 /* Ensure the background is pitch black when UI is hidden */
 body {
     background-color: black;

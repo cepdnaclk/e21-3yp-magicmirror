@@ -9,19 +9,16 @@ import threading
 import time
 
 import speech_recognition as sr
-import edge_tts
 import yt_dlp
+
+from config.settings import (
+    ALSA_MIC_CARD, RECORD_SECONDS, SAMPLE_RATE, MUSIC_CHANNELS, VOICE
+)
+from services.tts_service import speak_ffplay
 
 # =========================
 # CONFIG
 # =========================
-
-ALSA_MIC_CARD  = "plughw:2,0"
-RECORD_SECONDS = 4
-SAMPLE_RATE    = 16000
-CHANNELS       = 1
-
-VOICE = "en-GB-SoniaNeural"
 
 # Wake words - ONLY these trigger actions
 # Everything else is IGNORED
@@ -71,28 +68,12 @@ suppress_alsa()
 
 
 # =========================
-# TTS
+# TTS (delegates to tts_service)
 # =========================
 
 async def speak(text):
-    """Speak text via edge-tts."""
-    filename = "/tmp/tts_output.mp3"
-    try:
-        print(f"  [TTS] {text}")
-        tts = edge_tts.Communicate(text, VOICE)
-        await tts.save(filename)
-
-        subprocess.run(
-            ["ffplay", "-nodisp", "-autoexit",
-             "-loglevel", "quiet", filename],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL
-        )
-
-        if os.path.exists(filename):
-            os.remove(filename)
-    except Exception as e:
-        print(f"  [TTS Error] {e}")
+    """Speak text via edge-tts. Delegates to tts_service."""
+    await speak_ffplay(text, voice=VOICE)
 
 # =========================
 # RECORD AUDIO
@@ -113,7 +94,7 @@ def record_audio(duration=None):
         "-D", ALSA_MIC_CARD,
         "-f", "S16_LE",
         "-r", str(SAMPLE_RATE),
-        "-c", str(CHANNELS),
+        "-c", str(MUSIC_CHANNELS),
         "-d", str(duration),
         "-q",
         output_file
