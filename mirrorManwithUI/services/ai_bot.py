@@ -30,21 +30,58 @@ class SinhalaBot:
             try:
                 with sr.Microphone() as source:
                     self.recognizer.adjust_for_ambient_noise(source, duration=0.5)
-                    print("?? Listening for 'Hey mirror'...")
+                    print("?? Listening for 'Hey mirror' or music commands...")
                     # FIXED: Added to_thread so it doesn't block the AWS S3 watcher!
                     audio = await asyncio.to_thread(
                         self.recognizer.listen, source, timeout=2.0, phrase_time_limit=3.0
                     )
                 try:
-                    text = await asyncio.to_thread(self.recognizer.recognize_google, audio)
-                    text = text.lower()
+                    is_sinhala_detected = False
+                    try:
+                        text = await asyncio.to_thread(self.recognizer.recognize_google, audio, language="en-US")
+                        text = text.lower()
+                    except sr.UnknownValueError:
+                        text = await asyncio.to_thread(self.recognizer.recognize_google, audio, language="si-LK")
+                        text = text.lower()
+                        is_sinhala_detected = True
+                        
                     print(f"?? Detected: {text}")
-                    if any(trig in text for trig in triggers):
-                        print(f"? Wake word detected! Activating mirror...")
-                        # Show mirror man (hide dashboard, show idle.mp4)
-                        await manager.broadcast("show_mirror")
-                        self.is_active = True
-                        return
+                    
+                    from services import music_assistant
+                    is_playing = music_assistant.is_music_playing()
+                    is_paused = music_assistant.paused
+                    is_mirror_wake_word = any(trig in text for trig in triggers)
+
+                    if is_mirror_wake_word:
+                        if is_playing and not is_paused:
+                            print("?? Music is playing, ignoring Mirror Man wake word.")
+                            continue
+                        elif is_playing and is_paused:
+                            print("?? Music is paused. Asking user to stop music first.")
+                            await asyncio.to_thread(self.speak, "Please stop the music to get back to Mirror Man.")
+                            continue
+                        else:
+                            print(f"? Wake word detected! Activating mirror...")
+                            # Show mirror man (hide dashboard, show idle.mp4)
+                            await manager.broadcast("show_mirror")
+                            self.is_active = True
+                            return
+                            
+                    # If not a mirror wake word, check for music command
+                    action, param, is_sinhala = music_assistant.parse_command(text, is_sinhala_detected)
+                    if action != 'ignore':
+                        print(f"?? Music Command Detected: {action} ({param})")
+                        if action == 'play':
+                            await music_assistant.play_youtube_music(param, is_sinhala)
+                        elif action == 'stop':
+                            await music_assistant.stop_music()
+                        elif action == 'pause':
+                            await music_assistant.pause_music()
+                        elif action == 'resume':
+                            await music_assistant.resume_music()
+                        elif action == 'exit':
+                            await music_assistant.stop_music()
+
                 except sr.UnknownValueError:
                     pass
             except Exception:

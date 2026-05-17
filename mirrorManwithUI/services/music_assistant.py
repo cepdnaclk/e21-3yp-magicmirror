@@ -218,15 +218,21 @@ async def play_youtube_music(song, is_sinhala=False):
 
     song = song.strip() or "relaxing music"
 
+    song_lower = song.lower()
+    is_karaoke_requested = 'karaoke' in song_lower
+
     # Build search query
     if is_sinhala:
-        if not any(w in song.lower() for w in
-                   ['sinhala', 'sri lanka']):
+        if not any(w in song_lower for w in ['sinhala', 'sri lanka']):
             search_query = f"{song} sinhala song"
         else:
             search_query = song
     else:
         search_query = song
+
+    # Prevent karaoke unless explicitly requested
+    if not is_karaoke_requested:
+        search_query += " lyrics -karaoke"
 
     print(f"  [Music] Searching: '{search_query}'")
 
@@ -273,12 +279,18 @@ async def play_youtube_music(song, is_sinhala=False):
         short_title = title[:40] if len(title) > 40 else title
         await speak(f"Now playing {short_title}")
 
+        kwargs = {}
+        if sys.platform == "win32":
+            kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
+        else:
+            kwargs["preexec_fn"] = os.setsid
+
         ffplay_process = subprocess.Popen(
             ["ffplay", "-nodisp", "-autoexit",
              "-loglevel", "quiet", audio_url],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
-            preexec_fn=os.setsid,
+            **kwargs
         )
         paused = False
 
@@ -294,12 +306,18 @@ async def stop_music(announce=True):
 
     if is_music_playing():
         try:
-            pgid = os.getpgid(ffplay_process.pid)
-            os.killpg(pgid, signal.SIGTERM)
+            if sys.platform == "win32":
+                ffplay_process.terminate()
+            else:
+                pgid = os.getpgid(ffplay_process.pid)
+                os.killpg(pgid, signal.SIGTERM)
             try:
                 ffplay_process.wait(timeout=3)
             except subprocess.TimeoutExpired:
-                os.killpg(pgid, signal.SIGKILL)
+                if sys.platform == "win32":
+                    ffplay_process.kill()
+                else:
+                    os.killpg(pgid, signal.SIGKILL)
                 ffplay_process.wait()
         except Exception:
             pass
@@ -319,6 +337,9 @@ async def pause_music():
 
     if is_music_playing() and not paused:
         try:
+            if sys.platform == "win32":
+                await speak("Pausing music is not supported on Windows.")
+                return
             os.killpg(os.getpgid(ffplay_process.pid), signal.SIGSTOP)
             paused = True
             print("  [Music] ? Paused")
@@ -337,6 +358,9 @@ async def resume_music():
 
     if is_music_playing() and paused:
         try:
+            if sys.platform == "win32":
+                await speak("Resuming music is not supported on Windows.")
+                return
             os.killpg(os.getpgid(ffplay_process.pid), signal.SIGCONT)
             paused = False
             print("  [Music] ? Resumed")

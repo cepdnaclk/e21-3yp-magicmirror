@@ -76,8 +76,10 @@ def fallback_speak(text):
 async def speak_ffplay(text, voice="en-GB-SoniaNeural"):
     """Speak text via edge-tts + ffplay. Originally from MusicAssistant.py speak()"""
     import edge_tts
+    import tempfile
 
-    filename = "/tmp/tts_output.mp3"
+    temp_dir = tempfile.gettempdir()
+    filename = os.path.join(temp_dir, "tts_output_ffplay.mp3")
     try:
         print(f"  [TTS] {text}")
         tts = edge_tts.Communicate(text, voice)
