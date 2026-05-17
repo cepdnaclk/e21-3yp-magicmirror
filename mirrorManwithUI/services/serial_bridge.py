@@ -2,16 +2,17 @@ import serial
 import time
 import requests
 
+from config.settings import SERIAL_PORT, SERIAL_BAUD, API_URL
+
 # Configuration
-PORT = "/dev/ttyUSB0" 
-BAUD = 115200
-API_URL = "http://127.0.0.1:8000/api/presence/"
+PORT = SERIAL_PORT
+BAUD = SERIAL_BAUD
 
 print("Connecting to ESP32 via Serial...")
 try:
     # Adding a timeout to ensure it doesn't get stuck
-    ser = serial.Serial(PORT, BAUD, timeout=0.1) 
-    time.sleep(2) 
+    ser = serial.Serial(PORT, BAUD, timeout=0.1)
+    time.sleep(2)
     print("Bridge Active. Listening for PRESENT/ABSENT signals...")
 except Exception as e:
     print(f"Connection Failed: {e}")

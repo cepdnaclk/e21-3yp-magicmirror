@@ -83,16 +83,74 @@
             list.insertAdjacentHTML('afterbegin', html);
         }
 
+        let mirrorActive = false;
+
         socket.onmessage = (event) => {
             const v = document.getElementById('mirror-video');
             const wrapper = document.getElementById('mirror-wrapper');
+            const uiLayer = document.getElementById('ui-layer');
+            const videoLayer = document.getElementById('video-layer');
             const notifyBox = document.getElementById('notification-content');
             const popup = document.getElementById('big-popup');
            
             let payload = null;
             try { payload = JSON.parse(event.data); } catch { payload = event.data; }
 
-            // 1. Presence Detection (සෙන්සර් එකෙන් එන දත්ත)
+            // --- Video State Management ---
+            if (typeof payload === 'string') {
+                if (payload === 'show_mirror') {
+                    // Wake word detected: hide dashboard, show mirror man with idle.mp4
+                    mirrorActive = true;
+                    uiLayer.classList.add('hidden');
+                    videoLayer.classList.add('visible');
+                    if (!v.src.includes('idle.mp4')) {
+                        v.src = 'static/idle.mp4';
+                    }
+                    v.play();
+                    return;
+                }
+
+                if (payload === 'hide_mirror') {
+                    // Goodbye: hide mirror man, restore dashboard
+                    mirrorActive = false;
+                    videoLayer.classList.remove('visible');
+                    uiLayer.classList.remove('hidden');
+                    v.pause();
+                    return;
+                }
+
+                if (payload === 'idle') {
+                    // Mirror waiting/listening — show idle.mp4 (keep UI hidden if mirror active)
+                    if (mirrorActive) {
+                        if (!v.src.includes('idle.mp4')) {
+                            v.src = 'static/idle.mp4';
+                        }
+                        v.play();
+                    }
+                    return;
+                }
+
+                if (payload === 'thinking') {
+                    if (!v.src.includes('thinking.mp4')) {
+                        v.src = 'static/thinking.mp4';
+                        v.play();
+                    }
+                    return;
+                }
+
+                if (payload === 'talking') {
+                    if (!v.src.includes('talking.mp4')) {
+                        v.src = 'static/talking.mp4';
+                        v.play();
+                    }
+                    return;
+                }
+
+                // Unknown string payload — ignore
+                return;
+            }
+
+            // 1. Presence Detection
             if (payload && payload.type === 'presence') {
                 if (payload.value === 'present') {
                     wrapper.classList.remove('black-out');
@@ -108,11 +166,10 @@
                 const rawMsg = payload.message;
                 const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
 
-                // --- පියවර: ඕෆ් වෙලා තිබුණොත් ඔන් කිරීම (සහ දිගටම ඔන් වී තිබීම) ---
-                // මෙතනදී අපි ආපහු ඕෆ් කරන්න කියලා කිසිම දෙයක් ලියන්නේ නැහැ
+                // Turn on screen if it was off
                 wrapper.classList.remove('black-out');
 
-                // --- පියවර A: මැද ලොකුවට Pop-up කිරීම ---
+                // Show popup in center
                 popup.innerHTML = `
                     <div class="cyan-glow-text">INCOMING_TRANSMISSION</div>
                     <div id="popup-text">${rawMsg.toUpperCase()}</div>
@@ -122,7 +179,7 @@
                 `;
                 popup.classList.add('show');
 
-                // --- පියවර B: තත්පර 10කට පසු Pop-up එක අයින් කිරීම ---
+                // Dismiss popup after 10 seconds (matches progress bar animation)
                 setTimeout(() => {
                     popup.classList.remove('show');
 
@@ -138,7 +195,7 @@
                         if (notifyBox.innerText.includes("NO NEW MESSAGES")) notifyBox.innerHTML = "";
                         notifyBox.insertBefore(newEntry, notifyBox.firstChild);
 
-                        // 10min පසු ඉවත් කිරීම
+                        // Remove after 10 minutes
                         setTimeout(() => {
                             const itemToRemove = document.getElementById(entryId);
                             if (itemToRemove) {
@@ -173,7 +230,7 @@
                             addScheduleItem({ time: 'NOW', name: rawMsg.toUpperCase(), date: 'TODAY' });
                         }
                     }
-                }, 600000);
+                }, 10000);
                 return;
             }
         };
