@@ -7,7 +7,10 @@ import webbrowser
 import time
 import threading
 from fastapi import FastAPI
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from services.weather_service import get_current_weather
+
 
 # ================= WINDOWS FIX =================
 if sys.platform.startswith("win"):
@@ -47,6 +50,22 @@ async def startup_event():
 @app.on_event("shutdown")
 async def shutdown_event():
     pya.terminate()
+
+
+@app.get("/api/weather")
+def weather_api():
+    weather = get_current_weather()
+
+    if weather is None:
+        return JSONResponse(
+            status_code=503,
+            content={
+                "status": "error",
+                "message": "Weather data is currently unavailable"
+            }
+        )
+
+    return {"status": "success", "data": weather}
 
 # ================= MASTER LAUNCHER =================
 if __name__ == "__main__":

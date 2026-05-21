@@ -14,3 +14,4 @@ uvicorn
 google-genai
 fastapi
 websockets
+flask
