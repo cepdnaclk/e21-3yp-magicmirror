@@ -219,7 +219,7 @@ async def play_youtube_music(song, is_sinhala=False):
     song = song.strip() or "relaxing music"
 
     song_lower = song.lower()
-    is_karaoke_requested = 'karaoke' in song_lower
+    is_karaoke_requested = 'karaoke' in song_lower or 'කැරෝකේ' in song
 
     # Build search query
     if is_sinhala:
@@ -232,7 +232,7 @@ async def play_youtube_music(song, is_sinhala=False):
 
     # Prevent karaoke unless explicitly requested
     if not is_karaoke_requested:
-        search_query += " lyrics -karaoke"
+        search_query += " lyrics -karaoke -instrumental -backing -cover -කැරෝකේ"
 
     print(f"  [Music] Searching: '{search_query}'")
 

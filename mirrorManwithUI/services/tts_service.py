@@ -4,17 +4,44 @@ import subprocess
 
 # ================= TTS via edge-tts + pygame (used by SinhalaBot / main app) =================
 def speak_pygame(text, voice="si-LK-ThiliniNeural"):
-    """High-quality TTS that uses edge-tts + pygame for playback.
-    Originally from main2.py SinhalaBot.speak()
+    """High-quality TTS that uses edge-tts + pygame for English playback,
+    and Google TTS (gTTS) for highly natural, smooth Sinhala playback.
     """
     try:
-        import edge_tts
-        import asyncio
         import pygame
         import tempfile
+        import io
 
         if not pygame.mixer.get_init():
             pygame.mixer.init()
+
+        # If it is a Sinhala voice request, use Google TTS (gTTS) - it is significantly smoother
+        if voice.startswith("si-LK") or any('\u0d80' <= c <= '\u0dff' for c in text):
+            from gtts import gTTS
+            
+            # Generate to a temporary file for stable Pygame playback
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as fp:
+                temp_filename = fp.name
+                
+            tts = gTTS(text=text, lang='si')
+            tts.save(temp_filename)
+            
+            pygame.mixer.music.load(temp_filename)
+            pygame.mixer.music.play()
+            
+            while pygame.mixer.music.get_busy():
+                pygame.time.Clock().tick(10)
+                
+            pygame.mixer.music.unload()
+            try:
+                os.remove(temp_filename)
+            except:
+                pass
+            return
+
+        # For English, use edge-tts (already very smooth)
+        import edge_tts
+        import asyncio
 
         # Generate to a temporary file
         with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as fp:

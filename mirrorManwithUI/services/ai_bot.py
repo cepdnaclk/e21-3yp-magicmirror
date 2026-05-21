@@ -116,12 +116,20 @@ class SinhalaBot:
 
             try:
                 try:
+                    # Try to recognize English first
                     user_text = await asyncio.to_thread(
-                        self.recognizer.recognize_google, audio_data, language='si-LK'
+                        self.recognizer.recognize_google, audio_data, language='en-US'
                     )
-                    print(f"?? You said: {user_text}")
+                    print(f"?? You said (English): {user_text}")
                 except sr.UnknownValueError:
-                    user_text = ""
+                    # Fallback to Sinhala if English recognition fails
+                    try:
+                        user_text = await asyncio.to_thread(
+                            self.recognizer.recognize_google, audio_data, language='si-LK'
+                        )
+                        print(f"?? You said (Sinhala): {user_text}")
+                    except sr.UnknownValueError:
+                        user_text = ""
                 except Exception as e:
                     user_text = ""
 
@@ -132,7 +140,7 @@ class SinhalaBot:
                 if any(word in user_text.lower() for word in shutdown_keywords):
                     print("?? Shutdown command received.")
                     await manager.broadcast("talking")
-                    await asyncio.to_thread(self.speak, "????????, ???? ??????.")
+                    await asyncio.to_thread(self.speak, "ස්තූතියි, නැවත හමුවෙමු.")
                     self.is_active = False
                     break
 
@@ -174,8 +182,12 @@ class SinhalaBot:
                 self.is_active = False
 
     def speak(self, text):
-        """High-quality Sinhala TTS that preserves your logic flow"""
-        speak_pygame(text, voice="si-LK-ThiliniNeural")
+        """High-quality TTS that dynamically selects voice based on language"""
+        if any('\u0d80' <= c <= '\u0dff' for c in text):
+            voice = "si-LK-ThiliniNeural"
+        else:
+            voice = "en-US-JennyNeural"
+        speak_pygame(text, voice=voice)
 
     def _fallback_speak(self, text):
         from services.tts_service import fallback_speak
@@ -190,7 +202,7 @@ class SinhalaBot:
                 await manager.broadcast("talking")
 
                 # 2. Mirror speaks greeting (logic waits here until audio finishes)
-                await asyncio.to_thread(self.speak, "????????! ?? ????? ????, ??? ???????")
+                await asyncio.to_thread(self.speak, "ආයුබෝවන්! මම කෙසේද උදව් කරන්නේ?")
 
                 # 3. Back to idle before starting conversation
                 await manager.broadcast("idle")
