@@ -30,12 +30,17 @@ class SinhalaBot:
             try:
                 with sr.Microphone() as source:
                     self.recognizer.adjust_for_ambient_noise(source, duration=0.5)
+<<<<<<< HEAD
                     print("?? Listening for 'Hey mirror'...")
+=======
+                    print("?? Listening for 'Hey mirror' or music commands...")
+>>>>>>> 7ba0e81460e52796aca50480eaeb7445046ac0df
                     # FIXED: Added to_thread so it doesn't block the AWS S3 watcher!
                     audio = await asyncio.to_thread(
                         self.recognizer.listen, source, timeout=2.0, phrase_time_limit=3.0
                     )
                 try:
+<<<<<<< HEAD
                     text = await asyncio.to_thread(self.recognizer.recognize_google, audio)
                     text = text.lower()
                     print(f"?? Detected: {text}")
@@ -45,6 +50,54 @@ class SinhalaBot:
                         await manager.broadcast("show_mirror")
                         self.is_active = True
                         return
+=======
+                    is_sinhala_detected = False
+                    try:
+                        text = await asyncio.to_thread(self.recognizer.recognize_google, audio, language="en-US")
+                        text = text.lower()
+                    except sr.UnknownValueError:
+                        text = await asyncio.to_thread(self.recognizer.recognize_google, audio, language="si-LK")
+                        text = text.lower()
+                        is_sinhala_detected = True
+                        
+                    print(f"?? Detected: {text}")
+                    
+                    from services import music_assistant
+                    is_playing = music_assistant.is_music_playing()
+                    is_paused = music_assistant.paused
+                    is_mirror_wake_word = any(trig in text for trig in triggers)
+
+                    if is_mirror_wake_word:
+                        if is_playing and not is_paused:
+                            print("?? Music is playing, ignoring Mirror Man wake word.")
+                            continue
+                        elif is_playing and is_paused:
+                            print("?? Music is paused. Asking user to stop music first.")
+                            await asyncio.to_thread(self.speak, "Please stop the music to get back to Mirror Man.")
+                            continue
+                        else:
+                            print(f"? Wake word detected! Activating mirror...")
+                            # Show mirror man (hide dashboard, show idle.mp4)
+                            await manager.broadcast("show_mirror")
+                            self.is_active = True
+                            return
+                            
+                    # If not a mirror wake word, check for music command
+                    action, param, is_sinhala = music_assistant.parse_command(text, is_sinhala_detected)
+                    if action != 'ignore':
+                        print(f"?? Music Command Detected: {action} ({param})")
+                        if action == 'play':
+                            await music_assistant.play_youtube_music(param, is_sinhala)
+                        elif action == 'stop':
+                            await music_assistant.stop_music()
+                        elif action == 'pause':
+                            await music_assistant.pause_music()
+                        elif action == 'resume':
+                            await music_assistant.resume_music()
+                        elif action == 'exit':
+                            await music_assistant.stop_music()
+
+>>>>>>> 7ba0e81460e52796aca50480eaeb7445046ac0df
                 except sr.UnknownValueError:
                     pass
             except Exception:
@@ -79,12 +132,29 @@ class SinhalaBot:
 
             try:
                 try:
+<<<<<<< HEAD
                     user_text = await asyncio.to_thread(
                         self.recognizer.recognize_google, audio_data, language='si-LK'
                     )
                     print(f"?? You said: {user_text}")
                 except sr.UnknownValueError:
                     user_text = ""
+=======
+                    # Try to recognize English first
+                    user_text = await asyncio.to_thread(
+                        self.recognizer.recognize_google, audio_data, language='en-US'
+                    )
+                    print(f"?? You said (English): {user_text}")
+                except sr.UnknownValueError:
+                    # Fallback to Sinhala if English recognition fails
+                    try:
+                        user_text = await asyncio.to_thread(
+                            self.recognizer.recognize_google, audio_data, language='si-LK'
+                        )
+                        print(f"?? You said (Sinhala): {user_text}")
+                    except sr.UnknownValueError:
+                        user_text = ""
+>>>>>>> 7ba0e81460e52796aca50480eaeb7445046ac0df
                 except Exception as e:
                     user_text = ""
 
@@ -95,7 +165,11 @@ class SinhalaBot:
                 if any(word in user_text.lower() for word in shutdown_keywords):
                     print("?? Shutdown command received.")
                     await manager.broadcast("talking")
+<<<<<<< HEAD
                     await asyncio.to_thread(self.speak, "????????, ???? ??????.")
+=======
+                    await asyncio.to_thread(self.speak, "ස්තූතියි, නැවත හමුවෙමු.")
+>>>>>>> 7ba0e81460e52796aca50480eaeb7445046ac0df
                     self.is_active = False
                     break
 
@@ -137,8 +211,17 @@ class SinhalaBot:
                 self.is_active = False
 
     def speak(self, text):
+<<<<<<< HEAD
         """High-quality Sinhala TTS that preserves your logic flow"""
         speak_pygame(text, voice="si-LK-ThiliniNeural")
+=======
+        """High-quality TTS that dynamically selects voice based on language"""
+        if any('\u0d80' <= c <= '\u0dff' for c in text):
+            voice = "si-LK-ThiliniNeural"
+        else:
+            voice = "en-US-JennyNeural"
+        speak_pygame(text, voice=voice)
+>>>>>>> 7ba0e81460e52796aca50480eaeb7445046ac0df
 
     def _fallback_speak(self, text):
         from services.tts_service import fallback_speak
@@ -153,7 +236,11 @@ class SinhalaBot:
                 await manager.broadcast("talking")
 
                 # 2. Mirror speaks greeting (logic waits here until audio finishes)
+<<<<<<< HEAD
                 await asyncio.to_thread(self.speak, "????????! ?? ????? ????, ??? ???????")
+=======
+                await asyncio.to_thread(self.speak, "ආයුබෝවන්! මම කෙසේද උදව් කරන්නේ?")
+>>>>>>> 7ba0e81460e52796aca50480eaeb7445046ac0df
 
                 # 3. Back to idle before starting conversation
                 await manager.broadcast("idle")

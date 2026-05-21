@@ -22,12 +22,26 @@ class TestSinhalaBot:
         assert bot.recognizer is not None
 
     def test_speak_delegates_to_tts_service(self):
+<<<<<<< HEAD
         """Bot.speak() should call tts_service.speak_pygame."""
         from services.ai_bot import SinhalaBot
         bot = SinhalaBot()
         with patch("services.ai_bot.speak_pygame") as mock_speak:
             bot.speak("hello")
             mock_speak.assert_called_once_with("hello", voice="si-LK-ThiliniNeural")
+=======
+        """Bot.speak() should call tts_service.speak_pygame with correct voice based on language."""
+        from services.ai_bot import SinhalaBot
+        bot = SinhalaBot()
+        with patch("services.ai_bot.speak_pygame") as mock_speak:
+            # Test English
+            bot.speak("hello")
+            mock_speak.assert_called_with("hello", voice="en-US-JennyNeural")
+            
+            # Test Sinhala
+            bot.speak("ආයුබෝවන්")
+            mock_speak.assert_called_with("ආයුබෝවන්", voice="si-LK-ThiliniNeural")
+>>>>>>> 7ba0e81460e52796aca50480eaeb7445046ac0df
 
     def test_wake_word_triggers(self):
         """Verify wake word list contains expected triggers."""
@@ -182,9 +196,21 @@ class TestVideoBroadcastSourceInspection:
         assert callable(bot._fallback_speak)
 
     def test_bot_speak_uses_correct_voice(self):
+<<<<<<< HEAD
         """Bot.speak should use si-LK-ThiliniNeural voice."""
         from services.ai_bot import SinhalaBot
         bot = SinhalaBot()
         with patch("services.ai_bot.speak_pygame") as mock_speak:
             bot.speak("test text")
             mock_speak.assert_called_with("test text", voice="si-LK-ThiliniNeural")
+=======
+        """Bot.speak should dynamically use si-LK-ThiliniNeural or en-US-JennyNeural."""
+        from services.ai_bot import SinhalaBot
+        bot = SinhalaBot()
+        with patch("services.ai_bot.speak_pygame") as mock_speak:
+            bot.speak("ආයුබෝවන්")
+            mock_speak.assert_called_with("ආයුබෝවන්", voice="si-LK-ThiliniNeural")
+            
+            bot.speak("test text")
+            mock_speak.assert_called_with("test text", voice="en-US-JennyNeural")
+>>>>>>> 7ba0e81460e52796aca50480eaeb7445046ac0df

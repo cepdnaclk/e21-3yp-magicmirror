@@ -4,6 +4,7 @@ import subprocess
 
 # ================= TTS via edge-tts + pygame (used by SinhalaBot / main app) =================
 def speak_pygame(text, voice="si-LK-ThiliniNeural"):
+<<<<<<< HEAD
     """High-quality TTS that uses edge-tts + pygame for playback.
     Originally from main2.py SinhalaBot.speak()
     """
@@ -12,10 +13,50 @@ def speak_pygame(text, voice="si-LK-ThiliniNeural"):
         import asyncio
         import pygame
         import tempfile
+=======
+    """High-quality TTS that uses edge-tts + pygame for English playback,
+    and Google TTS (gTTS) for highly natural, smooth Sinhala playback.
+    """
+    try:
+        import pygame
+        import tempfile
+        import io
+>>>>>>> 7ba0e81460e52796aca50480eaeb7445046ac0df
 
         if not pygame.mixer.get_init():
             pygame.mixer.init()
 
+<<<<<<< HEAD
+=======
+        # If it is a Sinhala voice request, use Google TTS (gTTS) - it is significantly smoother
+        if voice.startswith("si-LK") or any('\u0d80' <= c <= '\u0dff' for c in text):
+            from gtts import gTTS
+            
+            # Generate to a temporary file for stable Pygame playback
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as fp:
+                temp_filename = fp.name
+                
+            tts = gTTS(text=text, lang='si')
+            tts.save(temp_filename)
+            
+            pygame.mixer.music.load(temp_filename)
+            pygame.mixer.music.play()
+            
+            while pygame.mixer.music.get_busy():
+                pygame.time.Clock().tick(10)
+                
+            pygame.mixer.music.unload()
+            try:
+                os.remove(temp_filename)
+            except:
+                pass
+            return
+
+        # For English, use edge-tts (already very smooth)
+        import edge_tts
+        import asyncio
+
+>>>>>>> 7ba0e81460e52796aca50480eaeb7445046ac0df
         # Generate to a temporary file
         with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as fp:
             temp_filename = fp.name
@@ -76,8 +117,15 @@ def fallback_speak(text):
 async def speak_ffplay(text, voice="en-GB-SoniaNeural"):
     """Speak text via edge-tts + ffplay. Originally from MusicAssistant.py speak()"""
     import edge_tts
+<<<<<<< HEAD
 
     filename = "/tmp/tts_output.mp3"
+=======
+    import tempfile
+
+    temp_dir = tempfile.gettempdir()
+    filename = os.path.join(temp_dir, "tts_output_ffplay.mp3")
+>>>>>>> 7ba0e81460e52796aca50480eaeb7445046ac0df
     try:
         print(f"  [TTS] {text}")
         tts = edge_tts.Communicate(text, voice)
