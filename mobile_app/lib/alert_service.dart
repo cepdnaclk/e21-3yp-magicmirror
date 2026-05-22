@@ -38,9 +38,14 @@ class AlertService {
   void startMonitoring() {
     Timer.periodic(const Duration(seconds: 15), (timer) async {
       try {
-        // v2 Syntax: StoragePath.fromString භාවිතා කළ යුතුයි
+        // 1. Find out who is logged into the app
+        final attributes = await Amplify.Auth.fetchUserAttributes();
+        final emailAttr = attributes.firstWhere((attr) => attr.userAttributeKey == AuthUserAttributeKey.email);
+        final userId = emailAttr.value.replaceAll('@gmail.com', ''); // e.g., "john_doe"
+
+        // 2. Only look for alerts inside THIS user's folder!
         final listResult = await Amplify.Storage.list(
-          path: const StoragePath.fromString('public/alerts/'),
+          path: StoragePath.fromString('public/alerts/$userId/'),
         ).result; // මෙහි .result අනිවාර්යයි
 
         // අලුත් JSON files තිබේ නම්
