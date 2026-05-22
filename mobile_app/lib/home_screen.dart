@@ -1,9 +1,13 @@
-import 'dart:ui'; // Required for Glass effect (BackdropFilter)
+import 'dart:ui'; 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:amplify_flutter/amplify_flutter.dart'; 
+import 'package:flutter_animate/flutter_animate.dart';
 import 'database_service.dart';
 import 'slideshow_screen.dart';
-// import 'profile_screen.dart'; // <--- REMOVED: No longer needed
+import 'manage_family_members_screen.dart';
+import 'manage_reminders_screen.dart'; 
+import 'login_screen.dart'; 
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -16,35 +20,77 @@ class _HomeScreenState extends State<HomeScreen> {
   final DatabaseService _db = DatabaseService();
   final TextEditingController _speakController = TextEditingController();
   
-  // --- STATES ---
-  bool _isFanOn = false;
-  // New States for Modules
-  bool _showClock = true;
-  bool _showNews = true;
-  bool _showCalendar = false;
+  bool _isSendingMessage = false; 
 
-  // --- THEME COLORS ---
-  final Color _accentColor = const Color(0xFFC4D300); // Neon Gold
-  final Color _bgDark = const Color(0xFF0A0B10);      // Deep Black
+  final Color _accentColor = const Color(0xFFC4D300); 
+  final Color _bgDark = const Color(0xFF0A0B10);      
   final Color _glassWhite = Colors.white.withOpacity(0.05);
   final Color _glassBorder = Colors.white.withOpacity(0.1);
+
+  // --- FIXED PUPPETEER LOGIC ---
+  Future<void> _sendPuppeteerMessage() async {
+    if (_speakController.text.trim().isEmpty) return;
+
+    setState(() => _isSendingMessage = true);
+
+    try {
+      // Clean email to remove @gmail.com
+      final attributes = await Amplify.Auth.fetchUserAttributes();
+      final emailAttr = attributes.firstWhere((attr) => attr.userAttributeKey == AuthUserAttributeKey.email);
+      final userPrefix = emailAttr.value.replaceAll('@gmail.com', '');
+
+      final String timestamp = DateTime.now().millisecondsSinceEpoch.toString();
+      
+      // Send to notifications folder so it shows in the notification bar
+      final String pathName = 'public/notifications/${userPrefix}_Alert_$timestamp.txt';
+
+      await Amplify.Storage.uploadData(
+        data: StorageDataPayload.string(_speakController.text.trim()),
+        path: StoragePath.fromString(pathName),
+      ).result;
+
+      if (mounted) {
+        _speakController.clear();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("✅ Alert Sent to Mirror!", style: GoogleFonts.outfit()),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+          )
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Failed to send: $e"), backgroundColor: Colors.red)
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSendingMessage = false);
+    }
+  }
+
+  Future<void> _logout() async {
+    try {
+      await Amplify.Auth.signOut();
+      if (mounted) {
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LoginScreen()));
+      }
+    } catch (e) {
+      debugPrint("Error logging out: $e");
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _bgDark,
       extendBodyBehindAppBar: true, 
-      
-      // --- APP BAR ---
       appBar: AppBar(
         title: Text("MAGIC MIRROR", 
-          style: GoogleFonts.orbitron(
-            color: Colors.white, 
-            fontSize: 24, 
-            letterSpacing: 2, 
-            fontWeight: FontWeight.bold
-          )
-        ),
+          style: GoogleFonts.orbitron(color: Colors.white, fontSize: 24, letterSpacing: 2, fontWeight: FontWeight.bold)
+        ).animate(onPlay: (controller) => controller.repeat(reverse: true))
+         .shimmer(duration: 2.seconds, color: _accentColor.withOpacity(0.5)), // Shimmer effect for title
         centerTitle: true,
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -54,43 +100,47 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Container(color: Colors.black.withOpacity(0.2)),
           ),
         ),
-        // actions: [] <--- REMOVED THE BUTTON HERE
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout, color: Colors.white), 
+            onPressed: _logout
+          ).animate().fade(delay: 500.ms).scale()
+        ],
       ),
-
-      // --- BODY WITH BACKGROUND GLOW ---
       body: Stack(
         children: [
-          // 1. Background Glow Animation
+          // Animated Background Gradient 1
           Positioned(
-            top: -100,
-            left: -100,
+            top: -100, left: -100,
             child: Container(
-              width: 400,
-              height: 400,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [_accentColor.withOpacity(0.15), Colors.transparent],
-                ),
-              ),
-            ),
+              width: 400, height: 400,
+              decoration: BoxDecoration(shape: BoxShape.circle, gradient: RadialGradient(colors: [_accentColor.withOpacity(0.15), Colors.transparent])),
+            ).animate(onPlay: (controller) => controller.repeat(reverse: true))
+             .scaleXY(end: 1.2, duration: 4.seconds, curve: Curves.easeInOut)
+             .fadeIn(duration: 2.seconds),
           ),
-
-          // 2. Main Content
+          // Animated Background Gradient 2
+          Positioned(
+            bottom: -50, right: -100,
+            child: Container(
+              width: 300, height: 300,
+              decoration: BoxDecoration(shape: BoxShape.circle, gradient: RadialGradient(colors: [Colors.cyan.withOpacity(0.1), Colors.transparent])),
+            ).animate(onPlay: (controller) => controller.repeat(reverse: true))
+             .scaleXY(end: 1.3, duration: 5.seconds, curve: Curves.easeInOut)
+             .fadeIn(duration: 2.seconds, delay: 1.seconds),
+          ),
+          
           SafeArea(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(24),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  
-                  // --- 1. SENSOR DASHBOARD ---
                   StreamBuilder(
                     stream: _db.getSensorStream(),
                     builder: (context, snapshot) {
                       String temp = "--";
                       String humidity = "--";
-
                       if (snapshot.hasData) {
                         final data = snapshot.data as List<Map<String, dynamic>>;
                         for (var row in data) {
@@ -98,7 +148,6 @@ class _HomeScreenState extends State<HomeScreen> {
                           if (row['id'] == 'humidity') humidity = row['value'].toString();
                         }
                       }
-
                       return Row(
                         children: [
                           _glassSensorCard(Icons.thermostat, "$temp°C", "Room Temp", Colors.orange),
@@ -108,46 +157,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       );
                     },
                   ),
-
                   const SizedBox(height: 32),
-
-                  // --- 2. SMART MODULES (NEW) ---
-                  _sectionTitle("MIRROR MODULES"),
-                  const SizedBox(height: 12),
-                  // We use a Column of switches for better control
-                  Column(
-                    children: [
-                      _glassSwitchTile("Clock Widget", Icons.access_time, _showClock, (val) {
-                        setState(() => _showClock = val);
-                        _db.sendCommand('module_clock', val.toString());
-                      }),
-                      const SizedBox(height: 12),
-                      _glassSwitchTile("Live News Feed", Icons.newspaper, _showNews, (val) {
-                        setState(() => _showNews = val);
-                        _db.sendCommand('module_news', val.toString());
-                      }),
-                      const SizedBox(height: 12),
-                      _glassSwitchTile("Calendar Events", Icons.calendar_month, _showCalendar, (val) {
-                        setState(() => _showCalendar = val);
-                        _db.sendCommand('module_calendar', val.toString());
-                      }),
-                    ],
-                  ),
-
-                  const SizedBox(height: 32),
-
-                  // --- 3. FAN CONTROL ---
-                  _sectionTitle("THE WIND GUARDIAN"),
-                  const SizedBox(height: 12),
-                  _glassSwitchTile("Fan Status", Icons.wind_power, _isFanOn, (val) {
-                    setState(() => _isFanOn = val);
-                    _db.sendCommand('fan', val.toString()); 
-                  }),
-
-                  const SizedBox(height: 32),
-
-                  // --- 4. THE PUPPETEER ---
-                  _sectionTitle("THE PUPPETEER"),
+                  _sectionTitle("QUICK ALERT"),
                   const SizedBox(height: 12),
                   _glassContainer(
                     padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 5),
@@ -158,80 +169,40 @@ class _HomeScreenState extends State<HomeScreen> {
                             controller: _speakController,
                             style: GoogleFonts.outfit(color: Colors.white),
                             decoration: InputDecoration(
-                              hintText: "Type what Shrek should say...",
+                              hintText: "Type temporary alert...",
                               hintStyle: GoogleFonts.outfit(color: Colors.white38),
                               border: InputBorder.none,
                               contentPadding: const EdgeInsets.symmetric(horizontal: 15),
                             ),
                           ),
                         ),
-                        Container(
-                          margin: const EdgeInsets.only(right: 5),
-                          decoration: BoxDecoration(
-                            color: _accentColor.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: IconButton(
-                            icon: Icon(Icons.send_rounded, color: _accentColor),
-                            onPressed: () {
-                              if (_speakController.text.isNotEmpty) {
-                                _db.sendCommand('speak', _speakController.text);
-                                _speakController.clear();
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text("Sent to Mirror!", style: GoogleFonts.outfit()),
-                                    backgroundColor: Colors.grey[900],
-                                    behavior: SnackBarBehavior.floating,
-                                  )
-                                );
-                              }
-                            },
-                          ),
-                        ),
+                        _isSendingMessage
+                            ? const Padding(padding: EdgeInsets.all(12.0), child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFC4D300))))
+                            : IconButton(
+                                icon: Icon(Icons.send_rounded, color: _accentColor), 
+                                onPressed: _sendPuppeteerMessage
+                              ).animate(target: _speakController.text.isNotEmpty ? 1 : 0).scaleXY(end: 1.1).shimmer(),
                       ],
                     ),
                   ),
-
                   const SizedBox(height: 32),
-
-                  // --- 5. SYSTEM POWER (NEW) ---
                   _sectionTitle("SYSTEM POWER"),
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      Expanded(
-                        child: _glassButton("REBOOT", Icons.restart_alt, Colors.cyan, () {
-                          _db.sendCommand('system', 'reboot');
-                        }),
-                      ),
+                      Expanded(child: _glassButton("REBOOT", Icons.restart_alt, Colors.cyan, () => _db.sendCommand('system', 'reboot'))),
                       const SizedBox(width: 16),
-                      Expanded(
-                        child: _glassButton("SHUTDOWN", Icons.power_settings_new, Colors.redAccent, () {
-                          _db.sendCommand('system', 'shutdown');
-                        }),
-                      ),
+                      Expanded(child: _glassButton("SHUTDOWN", Icons.power_settings_new, Colors.redAccent, () => _db.sendCommand('system', 'shutdown'))),
                     ],
                   ),
-
                   const SizedBox(height: 20),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 55,
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.push(context, MaterialPageRoute(builder: (context) => const SlideshowScreen()));
-                      },
-                      icon: const Icon(Icons.photo_library, color: Colors.black),
-                      label: Text("MANAGE SLIDESHOW", style: GoogleFonts.orbitron(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black)),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _accentColor,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 50), // Bottom padding
-                ],
+                  _fullWidthButton("MANAGE SLIDESHOW", Icons.photo_library, () => Navigator.push(context, MaterialPageRoute(builder: (context) => const SlideshowScreen()))),
+                  const SizedBox(height: 20),
+                  _fullWidthButton("FAMILY MEMBERS", Icons.group, () => Navigator.push(context, MaterialPageRoute(builder: (context) => const ManageFamilyMembersScreen()))),
+                  const SizedBox(height: 20),
+                  _fullWidthButton("SCHEDULED REMINDERS", Icons.event_note, () => Navigator.push(context, MaterialPageRoute(builder: (context) => const ManageRemindersScreen()))),
+                  const SizedBox(height: 50),
+                ].animate(interval: 100.ms).fade(duration: 500.ms).slideY(begin: 0.1, end: 0, curve: Curves.easeOutQuad),
               ),
             ),
           ),
@@ -240,79 +211,77 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // --- REUSABLE WIDGETS ---
-
-  Widget _sectionTitle(String text) {
-    return Text(text, 
-      style: GoogleFonts.orbitron(
-        color: Colors.white54, 
-        fontSize: 12, 
-        letterSpacing: 2, 
-        fontWeight: FontWeight.bold
-      )
-    );
-  }
-
-  Widget _glassContainer({required Widget child, EdgeInsetsGeometry? padding}) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(24),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-        child: Container(
-          padding: padding ?? const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: _glassWhite,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: _glassBorder),
-          ),
-          child: child,
+  // --- UI HELPERS ---
+  Widget _fullWidthButton(String label, IconData icon, VoidCallback onTap) {
+    return SizedBox(
+      width: double.infinity, height: 55,
+      child: ElevatedButton.icon(
+        onPressed: onTap,
+        icon: Icon(icon, color: Colors.black),
+        label: Text(label, style: GoogleFonts.orbitron(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black)),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: _accentColor, 
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          elevation: 5,
+          shadowColor: _accentColor.withOpacity(0.5)
         ),
       ),
-    );
+    ).animate(onPlay: (controller) => controller.repeat(reverse: true))
+     .boxShadow(
+       begin: BoxShadow(color: _accentColor.withOpacity(0.2), blurRadius: 5, spreadRadius: 0),
+       end: BoxShadow(color: _accentColor.withOpacity(0.6), blurRadius: 15, spreadRadius: 2),
+       duration: 2.seconds,
+     );
   }
 
-  // A reusable switch tile for Modules & Fan
-  Widget _glassSwitchTile(String title, IconData icon, bool value, Function(bool) onChanged) {
-    return _glassContainer(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            children: [
-              Icon(icon, color: Colors.white54, size: 20),
-              const SizedBox(width: 12),
-              Text(title, style: GoogleFonts.outfit(color: Colors.white, fontSize: 16)),
-            ],
+  Widget _sectionTitle(String text) => Text(text, style: GoogleFonts.orbitron(color: Colors.white54, fontSize: 12, letterSpacing: 2, fontWeight: FontWeight.bold));
+
+  Widget _glassContainer({required Widget child, EdgeInsetsGeometry? padding}) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 10, spreadRadius: 2)
+        ]
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Container(
+            padding: padding ?? const EdgeInsets.all(20), 
+            decoration: BoxDecoration(
+              color: _glassWhite, 
+              borderRadius: BorderRadius.circular(24), 
+              border: Border.all(color: _glassBorder)
+            ), 
+            child: child
           ),
-          Transform.scale(
-            scale: 0.9,
-            child: Switch(
-              value: value,
-              activeColor: Colors.black,
-              activeTrackColor: _accentColor,
-              inactiveThumbColor: Colors.grey,
-              inactiveTrackColor: Colors.grey[800],
-              onChanged: onChanged,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
 
   Widget _glassButton(String label, IconData icon, Color color, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: _glassContainer(
-        padding: const EdgeInsets.symmetric(vertical: 20),
-        child: Column(
-          children: [
-            Icon(icon, color: color, size: 28),
-            const SizedBox(height: 8),
-            Text(label, style: GoogleFonts.orbitron(color: color, fontSize: 12, fontWeight: FontWeight.bold)),
-          ],
-        ),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(24),
+        splashColor: color.withOpacity(0.3),
+        highlightColor: color.withOpacity(0.1),
+        child: _glassContainer(
+          padding: const EdgeInsets.symmetric(vertical: 20), 
+          child: Column(
+            children: [
+              Icon(icon, color: color, size: 28)
+                .animate(onPlay: (controller) => controller.repeat())
+                .shimmer(duration: 2.seconds, delay: 1.seconds, color: Colors.white), 
+              const SizedBox(height: 8), 
+              Text(label, style: GoogleFonts.orbitron(color: color, fontSize: 12, fontWeight: FontWeight.bold))
+            ]
+          )
+        )
       ),
     );
   }
@@ -321,34 +290,19 @@ class _HomeScreenState extends State<HomeScreen> {
     return Expanded(
       child: _glassContainer(
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start, 
           children: [
             Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, color: color, size: 24),
-            ),
-            const SizedBox(height: 16),
-            Text(value, 
-              style: GoogleFonts.outfit(
-                color: Colors.white, 
-                fontSize: 28, 
-                fontWeight: FontWeight.w600
-              )
-            ),
-            Text(label, 
-              style: GoogleFonts.outfit(
-                color: Colors.white54, 
-                fontSize: 12, 
-                letterSpacing: 1
-              )
-            ),
-          ],
-        ),
-      ),
+              padding: const EdgeInsets.all(10), 
+              decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle), 
+              child: Icon(icon, color: color, size: 24)
+            ), 
+            const SizedBox(height: 16), 
+            Text(value, style: GoogleFonts.outfit(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w600)), 
+            Text(label, style: GoogleFonts.outfit(color: Colors.white54, fontSize: 12, letterSpacing: 1))
+          ]
+        )
+      )
     );
   }
 }

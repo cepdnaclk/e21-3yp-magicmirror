@@ -1,9 +1,9 @@
 import 'dart:typed_data';
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:amplify_flutter/amplify_flutter.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
 class SlideshowScreen extends StatefulWidget {
   const SlideshowScreen({super.key});
@@ -13,74 +13,117 @@ class SlideshowScreen extends StatefulWidget {
 }
 
 class _SlideshowScreenState extends State<SlideshowScreen> {
-  final supabase = Supabase.instance.client;
-  final ImagePicker _picker = ImagePicker();
-  
-  List<Map<String, dynamic>> _photos = [];
-  bool _isLoading = true;
-  bool _isUploading = false;
-
-  // Theme Colors
-  final Color _accentColor = const Color(0xFFC4D300); // Neon Gold
+  final Color _accentColor = const Color(0xFFC4D300);
   final Color _bgDark = const Color(0xFF0A0B10);
+  
+  List<Map<String, String>> _images = [];
+  bool _isLoading = true;
+  final ImagePicker _picker = ImagePicker();
 
   @override
   void initState() {
     super.initState();
-    _fetchPhotos();
+    _loadImages();
   }
 
-  // --- FETCH PHOTOS FROM DATABASE ---
-  Future<void> _fetchPhotos() async {
+  Future<void> _loadImages() async {
+    setState(() => _isLoading = true);
     try {
-      final data = await supabase.from('slideshow').select().order('created_at', ascending: false);
-      setState(() {
-        _photos = data;
-        _isLoading = false;
-      });
+      final result = await Amplify.Storage.list(
+        path: StoragePath.fromString('public/slideshow/'),
+      ).result;
+
+      List<Map<String, String>> images = [];
+      
+      for (var item in result.items) {
+        if (item.path.endsWith('/')) continue; 
+        
+        final urlResult = await Amplify.Storage.getUrl(
+          path: StoragePath.fromString(item.path)
+        ).result;
+        
+        images.add({
+          'path': item.path,
+          'url': urlResult.url.toString(),
+        });
+      }
+
+      if (mounted) {
+        setState(() {
+          _images = images;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
-      print("Error fetching photos: $e");
-      setState(() => _isLoading = false);
+      print("Error loading images: $e");
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error loading images: $e"), backgroundColor: Colors.red));
+      }
     }
   }
 
-  // --- UPLOAD NEW PHOTO ---
-  Future<void> _uploadPhoto() async {
-    final XFile? image = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
-    
+  Future<void> _uploadImage() async {
+    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
     if (image == null) return;
 
-    setState(() => _isUploading = true);
-
+    setState(() => _isLoading = true);
     try {
       final Uint8List bytes = await image.readAsBytes();
-      final String fileName = '${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final String fileName = 'slide_${DateTime.now().millisecondsSinceEpoch}.jpg';
 
-      // 1. Upload to Storage
-      await supabase.storage.from('slideshow').uploadBinary(fileName, bytes);
-
-      // 2. Get URL
-      final String imageUrl = supabase.storage.from('slideshow').getPublicUrl(fileName);
-
-      // 3. Save to Database
-      await supabase.from('slideshow').insert({'image_url': imageUrl});
-
-      // 4. Refresh the Grid
-      _fetchPhotos();
+      await Amplify.Storage.uploadData(
+        data: StorageDataPayload.bytes(bytes),
+        path: StoragePath.fromString('public/slideshow/$fileName'),
+      ).result;
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Photo added to Mirror Slideshow!"), backgroundColor: Colors.green)
+          const SnackBar(content: Text("✅ Image Added to Mirror!"), backgroundColor: Colors.green)
         );
       }
+      
+      await _loadImages();
+      
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Upload Error: $e"), backgroundColor: Colors.red)
-        );
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Upload failed: $e"), backgroundColor: Colors.red));
       }
-    } finally {
-      if (mounted) setState(() => _isUploading = false);
+    }
+  }
+
+  Future<void> _deleteImage(String path) async {
+    bool confirm = await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: _bgDark,
+        title: Text("Delete Photo?", style: GoogleFonts.orbitron(color: Colors.white, fontWeight: FontWeight.bold)),
+        content: Text("Are you sure you want to remove this photo from the mirror?", style: GoogleFonts.outfit(color: Colors.white54)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: Text("CANCEL", style: GoogleFonts.outfit(color: Colors.white54))),
+          TextButton(onPressed: () => Navigator.pop(context, true), child: Text("DELETE", style: GoogleFonts.outfit(color: Colors.redAccent, fontWeight: FontWeight.bold))),
+        ],
+      ),
+    ) ?? false;
+
+    if (!confirm) return;
+
+    setState(() => _isLoading = true);
+    try {
+      await Amplify.Storage.remove(
+        path: StoragePath.fromString(path)
+      ).result;
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("✅ Image Deleted!"), backgroundColor: Colors.green));
+      }
+      await _loadImages();
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Delete failed: $e"), backgroundColor: Colors.red));
+      }
     }
   }
 
@@ -90,84 +133,120 @@ class _SlideshowScreenState extends State<SlideshowScreen> {
       backgroundColor: _bgDark,
       extendBodyBehindAppBar: true,
       appBar: AppBar(
-        iconTheme: const IconThemeData(color: Colors.white),
-        title: Text("MIRROR GALLERY", 
-          style: GoogleFonts.orbitron(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold, letterSpacing: 2)
-        ),
         backgroundColor: Colors.transparent,
         elevation: 0,
-        flexibleSpace: ClipRect(
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-            child: Container(color: Colors.black.withOpacity(0.2)),
-          ),
-        ),
+        iconTheme: const IconThemeData(color: Colors.white),
+        title: Text(
+          "MANAGE SLIDESHOW", 
+          style: GoogleFonts.orbitron(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 2)
+        ).animate(onPlay: (controller) => controller.repeat(reverse: true))
+         .shimmer(duration: 2.seconds, color: _accentColor.withOpacity(0.5)),
       ),
-      
-      // Upload Button
-      floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: _accentColor,
-        onPressed: _isUploading ? null : _uploadPhoto,
-        icon: _isUploading 
-          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2))
-          : const Icon(Icons.add_photo_alternate, color: Colors.black),
-        label: Text("ADD PHOTO", style: GoogleFonts.orbitron(color: Colors.black, fontWeight: FontWeight.bold)),
-      ),
-
       body: Stack(
         children: [
-          // Background Glow
           Positioned(
-            top: 100,
-            left: -50,
+            bottom: -50, left: -100,
             child: Container(
               width: 300, height: 300,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(colors: [_accentColor.withOpacity(0.1), Colors.transparent]),
-              ),
-            ),
+              decoration: BoxDecoration(shape: BoxShape.circle, gradient: RadialGradient(colors: [Colors.cyan.withOpacity(0.1), Colors.transparent])),
+            ).animate(onPlay: (controller) => controller.repeat(reverse: true))
+             .scaleXY(end: 1.3, duration: 5.seconds, curve: Curves.easeInOut)
+             .fadeIn(duration: 2.seconds),
           ),
-
-          // Main Content
+          
           SafeArea(
             child: _isLoading 
               ? Center(child: CircularProgressIndicator(color: _accentColor))
-              : _photos.isEmpty
-                  ? Center(child: Text("No photos yet. Add some!", style: GoogleFonts.outfit(color: Colors.white54)))
+              : _images.isEmpty
+                  ? Center(
+                      child: Text(
+                        "No images found.\nUpload a photo to display on the mirror!", 
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.outfit(color: Colors.white54, fontSize: 16)
+                      ).animate().fade().slideY(),
+                    )
                   : GridView.builder(
                       padding: const EdgeInsets.all(16),
                       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2, // 2 photos per row
+                        crossAxisCount: 2, 
                         crossAxisSpacing: 16,
                         mainAxisSpacing: 16,
-                        childAspectRatio: 1, // Square crop
+                        childAspectRatio: 1, 
                       ),
-                      itemCount: _photos.length,
+                      itemCount: _images.length,
                       itemBuilder: (context, index) {
-                        final photoUrl = _photos[index]['image_url'];
-                        return ClipRRect(
-                          borderRadius: BorderRadius.circular(16),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              border: Border.all(color: Colors.white.withOpacity(0.1)),
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: Image.network(
-                              photoUrl,
-                              fit: BoxFit.cover,
-                              loadingBuilder: (context, child, progress) {
-                                if (progress == null) return child;
-                                return Center(child: CircularProgressIndicator(color: _accentColor));
-                              },
-                            ),
-                          ),
-                        );
+                        return _buildImageCard(_images[index])
+                          .animate()
+                          .fade(delay: (index * 100).ms)
+                          .scale(delay: (index * 100).ms);
                       },
                     ),
           ),
         ],
       ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _uploadImage,
+        backgroundColor: _accentColor,
+        icon: const Icon(Icons.add_photo_alternate, color: Colors.black),
+        label: Text("ADD PHOTO", style: GoogleFonts.orbitron(color: Colors.black, fontWeight: FontWeight.bold)),
+      ).animate(onPlay: (controller) => controller.repeat(reverse: true))
+       .boxShadow(
+         begin: BoxShadow(color: _accentColor.withOpacity(0.2), blurRadius: 5, spreadRadius: 0),
+         end: BoxShadow(color: _accentColor.withOpacity(0.6), blurRadius: 15, spreadRadius: 2),
+         duration: 2.seconds,
+       ),
+    );
+  }
+
+  Widget _buildImageCard(Map<String, String> imageData) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.white.withOpacity(0.1)),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(15),
+            child: Image.network(
+              imageData['url']!,
+              fit: BoxFit.cover,
+              loadingBuilder: (context, child, loadingProgress) {
+                if (loadingProgress == null) return child;
+                return Center(
+                  child: CircularProgressIndicator(
+                    color: _accentColor,
+                    value: loadingProgress.expectedTotalBytes != null
+                        ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                        : null,
+                  ),
+                );
+              },
+              errorBuilder: (context, error, stackTrace) {
+                return const Center(child: Icon(Icons.broken_image, color: Colors.white24, size: 40));
+              },
+            ),
+          ),
+        ),
+        Positioned(
+          top: 8,
+          right: 8,
+          child: GestureDetector(
+            onTap: () => _deleteImage(imageData['path']!),
+            child: Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.6),
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.redAccent.withOpacity(0.5)),
+              ),
+              child: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

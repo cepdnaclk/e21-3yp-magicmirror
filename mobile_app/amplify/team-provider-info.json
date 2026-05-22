@@ -1,0 +1,26 @@
+{
+  "dev": {
+    "awscloudformation": {
+      "AuthRoleName": "amplify-reflectstudio-dev-68cc3-authRole",
+      "UnauthRoleArn": "arn:aws:iam::277869548694:role/amplify-reflectstudio-dev-68cc3-unauthRole",
+      "AuthRoleArn": "arn:aws:iam::277869548694:role/amplify-reflectstudio-dev-68cc3-authRole",
+      "Region": "ap-southeast-1",
+      "DeploymentBucketName": "amplify-reflectstudio-dev-68cc3-deployment",
+      "UnauthRoleName": "amplify-reflectstudio-dev-68cc3-unauthRole",
+      "StackName": "amplify-reflectstudio-dev-68cc3",
+      "StackId": "arn:aws:cloudformation:ap-southeast-1:277869548694:stack/amplify-reflectstudio-dev-68cc3/2f5c8630-3e73-11f1-a638-025d11907e1b",
+      "AmplifyAppId": "drq68bjkj7vwp"
+    },
+    "categories": {
+      "auth": {
+        "reflectstudio19459c1a": {}
+      },
+      "storage": {
+        "reflectStudioProject": {}
+      },
+      "api": {
+        "reflectstudio": {}
+      }
+    }
+  }
+}

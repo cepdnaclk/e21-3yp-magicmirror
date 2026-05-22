@@ -1,8 +1,9 @@
-import 'dart:typed_data'; // <--- NEW: For Web Support
+import 'dart:typed_data'; 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'database_service.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -21,19 +22,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _selectedRole = 'Family'; 
   final List<String> _roles = ['Admin', 'Family', 'Guest'];
 
-  String _selectedTheme = 'Shrek';
-  final List<String> _themes = ['Shrek', 'Cyberpunk', 'Minimalist'];
+  String _selectedTheme = 'Cyberpunk';
+  final List<String> _themes = ['Cyberpunk', 'Shrek', 'Minimalist'];
 
-  // CHANGED: We now store the photo as "Bytes", not a "File"
   Uint8List? _photoBytes; 
   bool _isLoading = false;
+
+  final Color _accentColor = const Color(0xFFC4D300);
+  final Color _bgDark = const Color(0xFF0A0B10);
+  final Color _glassWhite = Colors.white.withOpacity(0.05);
+  final Color _glassBorder = Colors.white.withOpacity(0.1);
 
   Future<void> _takePhoto() async {
     final picker = ImagePicker();
     final picked = await picker.pickImage(source: ImageSource.camera, preferredCameraDevice: CameraDevice.front);
     
     if (picked != null) {
-      // Read the file as bytes (Web Compatible)
       final bytes = await picked.readAsBytes();
       setState(() => _photoBytes = bytes);
     }
@@ -53,7 +57,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         role: _selectedRole, 
         pin: _pinCtrl.text,       
         theme: _selectedTheme,    
-        photoBytes: _photoBytes! // <--- Sending Bytes
+        photoBytes: _photoBytes! 
       );
       
       if(mounted) {
@@ -70,93 +74,141 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: _bgDark,
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: Text("Create Profile", style: GoogleFonts.bangers(color: const Color(0xFFC4D300), fontSize: 25)), 
-        backgroundColor: Colors.grey[900],
-        iconTheme: const IconThemeData(color: Color(0xFFC4D300)),
+        title: Text("Create Profile", style: GoogleFonts.orbitron(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 2))
+          .animate(onPlay: (controller) => controller.repeat(reverse: true))
+          .shimmer(duration: 2.seconds, color: _accentColor.withOpacity(0.5)), 
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(25),
-        child: Column(
-          children: [
-            // 1. PHOTO
-            GestureDetector(
-              onTap: _takePhoto,
-              child: CircleAvatar(
-                radius: 70,
-                backgroundColor: Colors.grey[800],
-                // CHANGED: Use MemoryImage for bytes
-                backgroundImage: _photoBytes != null ? MemoryImage(_photoBytes!) : null,
-                child: _photoBytes == null ? const Icon(Icons.camera_alt, size: 40, color: Color(0xFFC4D300)) : null,
+      body: Stack(
+        children: [
+          Positioned(
+            top: -100, right: -100,
+            child: Container(
+              width: 300, height: 300,
+              decoration: BoxDecoration(shape: BoxShape.circle, gradient: RadialGradient(colors: [_accentColor.withOpacity(0.15), Colors.transparent])),
+            ).animate(onPlay: (controller) => controller.repeat(reverse: true))
+             .scaleXY(end: 1.2, duration: 4.seconds, curve: Curves.easeInOut)
+             .fadeIn(duration: 2.seconds),
+          ),
+          
+          SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(25),
+              child: Column(
+                children: [
+                  // 1. PHOTO
+                  GestureDetector(
+                    onTap: _takePhoto,
+                    child: Container(
+                      height: 140, width: 140,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: _glassWhite,
+                        border: Border.all(color: _photoBytes != null ? _accentColor : _glassBorder, width: 2),
+                        boxShadow: _photoBytes != null ? [BoxShadow(color: _accentColor.withOpacity(0.2), blurRadius: 20)] : [],
+                      ),
+                      child: _photoBytes != null
+                        ? ClipOval(child: Image.memory(_photoBytes!, fit: BoxFit.cover))
+                        : Icon(Icons.camera_alt, size: 40, color: _accentColor),
+                    ).animate(target: _photoBytes != null ? 1 : 0).shimmer(duration: 1.seconds, color: Colors.white),
+                  ),
+                  const SizedBox(height: 10),
+                  Text("Tap for Selfie", style: GoogleFonts.outfit(color: Colors.white54, fontSize: 14)),
+
+                  const SizedBox(height: 30),
+
+                  // 2. NAME
+                  _buildTextField(label: "Name", hint: "e.g. John Doe", controller: _nameCtrl, icon: Icons.person),
+                  
+                  const SizedBox(height: 20),
+
+                  // 3. PIN CODE
+                  _buildTextField(
+                    label: "4-Digit PIN", 
+                    hint: "Backup Access",
+                    controller: _pinCtrl, 
+                    icon: Icons.lock, 
+                    isNumber: true
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // 4. DROPDOWNS
+                  Row(
+                    children: [
+                      Expanded(child: _buildDropdown("Role", _selectedRole, _roles, (val) => setState(() => _selectedRole = val!))),
+                      const SizedBox(width: 15),
+                      Expanded(child: _buildDropdown("Theme", _selectedTheme, _themes, (val) => setState(() => _selectedTheme = val!))),
+                    ],
+                  ),
+
+                  const SizedBox(height: 50),
+
+                  // 5. REGISTER BUTTON
+                  SizedBox(
+                    width: double.infinity,
+                    height: 55,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _accentColor,
+                        foregroundColor: Colors.black,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                      ),
+                      onPressed: _isLoading ? null : _submit,
+                      child: _isLoading 
+                        ? const CircularProgressIndicator(color: Colors.black) 
+                        : Text("REGISTER USER", style: GoogleFonts.orbitron(fontSize: 16, fontWeight: FontWeight.bold)),
+                    ),
+                  ).animate(onPlay: (controller) => controller.repeat(reverse: true))
+                   .boxShadow(
+                     begin: BoxShadow(color: _accentColor.withOpacity(0.2), blurRadius: 5, spreadRadius: 0),
+                     end: BoxShadow(color: _accentColor.withOpacity(0.6), blurRadius: 15, spreadRadius: 2),
+                     duration: 2.seconds,
+                   ),
+                ].animate(interval: 100.ms).fade(duration: 500.ms).slideY(begin: 0.1, end: 0, curve: Curves.easeOutQuad),
               ),
             ),
-            const SizedBox(height: 10),
-            const Text("Tap for Selfie", style: TextStyle(color: Colors.grey)),
-
-            const SizedBox(height: 30),
-
-            // 2. NAME
-            _buildTextField(label: "Name (e.g. Donkey)", controller: _nameCtrl, icon: Icons.person),
-            
-            const SizedBox(height: 20),
-
-            // 3. PIN CODE
-            _buildTextField(
-              label: "4-Digit PIN (Backup Access)", 
-              controller: _pinCtrl, 
-              icon: Icons.lock, 
-              isNumber: true
-            ),
-
-            const SizedBox(height: 20),
-
-            // 4. DROPDOWNS
-            Row(
-              children: [
-                Expanded(child: _buildDropdown("Role", _selectedRole, _roles, (val) => setState(() => _selectedRole = val!))),
-                const SizedBox(width: 15),
-                Expanded(child: _buildDropdown("Theme", _selectedTheme, _themes, (val) => setState(() => _selectedTheme = val!))),
-              ],
-            ),
-
-            const SizedBox(height: 50),
-
-            // 5. REGISTER BUTTON
-            SizedBox(
-              width: double.infinity,
-              height: 55,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFC4D300)),
-                onPressed: _isLoading ? null : _submit,
-                child: _isLoading 
-                  ? const CircularProgressIndicator(color: Colors.black) 
-                  : const Text("REGISTER USER", style: TextStyle(color: Colors.black, fontSize: 18, fontWeight: FontWeight.bold)),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
-  // --- Helpers ---
-  Widget _buildTextField({required String label, required TextEditingController controller, required IconData icon, bool isNumber = false}) {
-    return TextField(
-      controller: controller,
-      keyboardType: isNumber ? TextInputType.number : TextInputType.text,
-      maxLength: isNumber ? 4 : null,
-      style: const TextStyle(color: Colors.white),
-      decoration: InputDecoration(
-        labelText: label,
-        labelStyle: const TextStyle(color: Colors.grey),
-        prefixIcon: Icon(icon, color: const Color(0xFFC4D300)),
-        enabledBorder: OutlineInputBorder(borderSide: const BorderSide(color: Colors.grey), borderRadius: BorderRadius.circular(10)),
-        focusedBorder: OutlineInputBorder(borderSide: const BorderSide(color: Color(0xFFC4D300)), borderRadius: BorderRadius.circular(10)),
-        filled: true,
-        fillColor: Colors.grey[900],
-        counterText: "",
-      ),
+  Widget _buildTextField({required String label, required String hint, required TextEditingController controller, required IconData icon, bool isNumber = false}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: 8.0, left: 5),
+          child: Text(label, style: GoogleFonts.orbitron(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+        ),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.08), 
+            borderRadius: BorderRadius.circular(15),
+            border: Border.all(color: Colors.white.withOpacity(0.1)),
+          ),
+          child: TextField(
+            controller: controller,
+            keyboardType: isNumber ? TextInputType.number : TextInputType.text,
+            maxLength: isNumber ? 4 : null,
+            style: GoogleFonts.outfit(color: Colors.white),
+            decoration: InputDecoration(
+              hintText: hint,
+              hintStyle: GoogleFonts.outfit(color: Colors.white24),
+              prefixIcon: Icon(icon, color: Colors.white54),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+              border: InputBorder.none,
+              counterText: "",
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -164,18 +216,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: const TextStyle(color: Colors.grey, fontSize: 12)),
-        const SizedBox(height: 5),
+        Padding(
+          padding: const EdgeInsets.only(bottom: 8.0, left: 5),
+          child: Text(title, style: GoogleFonts.orbitron(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+        ),
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-          decoration: BoxDecoration(color: Colors.grey[900], borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.grey)),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.08), 
+            borderRadius: BorderRadius.circular(15),
+            border: Border.all(color: Colors.white.withOpacity(0.1)),
+          ),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
               value: value,
-              dropdownColor: Colors.grey[900],
+              dropdownColor: _bgDark,
               isExpanded: true,
-              icon: const Icon(Icons.arrow_drop_down, color: Color(0xFFC4D300)),
-              items: items.map((e) => DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(color: Colors.white)))).toList(),
+              style: GoogleFonts.outfit(color: Colors.white, fontSize: 16),
+              items: items.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
               onChanged: onChanged,
             ),
           ),

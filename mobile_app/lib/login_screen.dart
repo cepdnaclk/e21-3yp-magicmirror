@@ -1,7 +1,8 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:amplify_flutter/amplify_flutter.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'home_screen.dart';
 import 'signup_screen.dart';
 
@@ -13,7 +14,6 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  // Use "Username" field for Email
   final TextEditingController _userController = TextEditingController(); 
   final TextEditingController _passController = TextEditingController();
 
@@ -25,43 +25,49 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
 
   Future<void> _login() async {
-    if (_userController.text.isEmpty || _passController.text.isEmpty) {
-       ScaffoldMessenger.of(context).showSnackBar(
-         const SnackBar(content: Text("Please enter email and password"))
-       );
-       return;
-    }
+    if (_userController.text.isEmpty || _passController.text.isEmpty) return;
 
     setState(() => _isLoading = true);
 
     try {
-      // 1. Authenticate with Supabase
-      final AuthResponse res = await Supabase.instance.client.auth.signInWithPassword(
-        email: _userController.text.trim(), // We use the username field as email
+      final session = await Amplify.Auth.fetchAuthSession();
+      if (session.isSignedIn) {
+        if (mounted) {
+          Navigator.pushReplacement(
+            context, 
+            MaterialPageRoute(builder: (context) => const HomeScreen()),
+          );
+        }
+        return; 
+      }
+
+      final SignInResult res = await Amplify.Auth.signIn(
+        username: _userController.text.trim(),
         password: _passController.text,
       );
 
-      // 2. If successful, navigate
-      if (res.user != null && mounted) {
+      if (res.isSignedIn && mounted) {
         Navigator.pushReplacement(
           context, 
           MaterialPageRoute(builder: (context) => const HomeScreen()),
         );
+      } else if (res.nextStep.signInStep == AuthSignInStep.confirmSignUp) {
+         if(mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please verify your email code first!")));
       }
     } on AuthException catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.message, style: GoogleFonts.outfit()),
-            backgroundColor: Colors.redAccent,
-          )
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error: $e"), backgroundColor: Colors.redAccent)
-        );
+      if (e.message.contains("already signed in")) {
+        if (mounted) {
+          Navigator.pushReplacement(
+            context, 
+            MaterialPageRoute(builder: (context) => const HomeScreen()),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(e.message), backgroundColor: Colors.redAccent)
+          );
+        }
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -74,18 +80,25 @@ class _LoginScreenState extends State<LoginScreen> {
       backgroundColor: _bgDark,
       body: Stack(
         children: [
-          // Background Glow
+          // Animated Background Gradient 1
           Positioned(
             top: -100, right: -100,
             child: Container(
               width: 300, height: 300,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [_accentColor.withOpacity(0.2), Colors.transparent],
-                ),
-              ),
-            ),
+              decoration: BoxDecoration(shape: BoxShape.circle, gradient: RadialGradient(colors: [_accentColor.withOpacity(0.15), Colors.transparent])),
+            ).animate(onPlay: (controller) => controller.repeat(reverse: true))
+             .scaleXY(end: 1.2, duration: 4.seconds, curve: Curves.easeInOut)
+             .fadeIn(duration: 2.seconds),
+          ),
+          // Animated Background Gradient 2
+          Positioned(
+            bottom: -50, left: -100,
+            child: Container(
+              width: 300, height: 300,
+              decoration: BoxDecoration(shape: BoxShape.circle, gradient: RadialGradient(colors: [Colors.cyan.withOpacity(0.1), Colors.transparent])),
+            ).animate(onPlay: (controller) => controller.repeat(reverse: true))
+             .scaleXY(end: 1.3, duration: 5.seconds, curve: Curves.easeInOut)
+             .fadeIn(duration: 2.seconds, delay: 1.seconds),
           ),
           
           Center(
@@ -94,23 +107,27 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Logo Placeholder (Using Icon if image fails)
                   Container(
                     height: 120, width: 120,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: _glassWhite,
+                      boxShadow: [BoxShadow(color: _accentColor.withOpacity(0.2), blurRadius: 20)],
                     ),
-                    child: Image.asset(
-                       'assets/images/head_logo.png',
-                       fit: BoxFit.contain,
-                       errorBuilder: (context, error, stackTrace) => 
-                         Icon(Icons.lock_outline, color: _accentColor, size: 60),
+                    child: ClipOval(
+                      child: Image.asset(
+                         'assets/images/head_logo.png',
+                         fit: BoxFit.contain,
+                         errorBuilder: (context, error, stackTrace) => 
+                           Icon(Icons.lock_outline, color: _accentColor, size: 60),
+                      ),
                     ),
                   ),
 
                   const SizedBox(height: 20),
-                  Text("MAGIC MIRROR", style: GoogleFonts.orbitron(color: Colors.white, fontSize: 32, letterSpacing: 4, fontWeight: FontWeight.bold)),
+                  Text("MAGIC MIRROR", style: GoogleFonts.orbitron(color: Colors.white, fontSize: 32, letterSpacing: 4, fontWeight: FontWeight.bold))
+                    .animate(onPlay: (controller) => controller.repeat(reverse: true))
+                    .shimmer(duration: 2.seconds, color: _accentColor.withOpacity(0.5)),
                   Text("SECURE ACCESS", style: GoogleFonts.outfit(color: Colors.white54, fontSize: 12, letterSpacing: 2)),
                   
                   const SizedBox(height: 50),
@@ -118,7 +135,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   _glassContainer(
                     child: Column(
                       children: [
-                        // Note: UI says Username, but we treat it as Email
                         _customTextField(_userController, Icons.person, "Email Address"),
                         const SizedBox(height: 20),
                         _customTextField(_passController, Icons.key, "Password", isPassword: true),
@@ -133,20 +149,24 @@ class _LoginScreenState extends State<LoginScreen> {
                               foregroundColor: Colors.black,
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                               elevation: 10,
-                              shadowColor: _accentColor.withOpacity(0.4),
+                              shadowColor: _accentColor.withOpacity(0.5),
                             ),
                             child: _isLoading 
                              ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
                              : Text("ENTER SYSTEM", style: GoogleFonts.orbitron(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1)),
                           ),
-                        ),
+                        ).animate(onPlay: (controller) => controller.repeat(reverse: true))
+                         .boxShadow(
+                           begin: BoxShadow(color: _accentColor.withOpacity(0.2), blurRadius: 5, spreadRadius: 0),
+                           end: BoxShadow(color: _accentColor.withOpacity(0.6), blurRadius: 15, spreadRadius: 2),
+                           duration: 2.seconds,
+                         ),
                       ],
                     ),
                   ),
 
                   const SizedBox(height: 30),
 
-                  // Create Account Button
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -162,7 +182,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ],
                   ),
-                ],
+                ].animate(interval: 100.ms).fade(duration: 500.ms).slideY(begin: 0.1, end: 0, curve: Curves.easeOutQuad),
               ),
             ),
           ),
@@ -172,20 +192,15 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Widget _glassContainer({required Widget child}) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(24),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-        child: Container(
-          padding: const EdgeInsets.all(30),
-          decoration: BoxDecoration(
-            color: _glassWhite,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: _glassBorder),
-          ),
-          child: child,
-        ),
+    return Container(
+      padding: const EdgeInsets.all(30),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.3), 
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.white.withOpacity(0.1)),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.5), blurRadius: 20, spreadRadius: 5)],
       ),
+      child: child,
     );
   }
 
@@ -199,9 +214,9 @@ class _LoginScreenState extends State<LoginScreen> {
         hintText: hint,
         hintStyle: GoogleFonts.outfit(color: Colors.white24),
         filled: true,
-        fillColor: Colors.black.withOpacity(0.3),
+        fillColor: Colors.white.withOpacity(0.05),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide(color: _accentColor)),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide(color: _accentColor.withOpacity(0.5))),
       ),
     );
   }

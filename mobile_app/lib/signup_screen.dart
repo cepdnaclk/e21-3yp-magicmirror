@@ -1,9 +1,10 @@
 import 'dart:typed_data';
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:amplify_flutter/amplify_flutter.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'email_confirmation_screen.dart'; 
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -19,12 +20,16 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final _passController = TextEditingController();
   final _confirmPassController = TextEditingController();
 
-  // Image State
-  Uint8List? _imageBytes; 
+  // --- Multi-Angle Image State ---
+  final Map<String, Uint8List> _faceAngles = {}; 
+  final List<String> _steps = ['front', 'left', 'right'];
+  int _currentStepIndex = 0;
+  
   final ImagePicker _picker = ImagePicker();
   
   // Loading State
   bool _isLoading = false;
+  bool _isPasswordVisible = false;
 
   // UI Colors
   final Color _accentColor = const Color(0xFFC4D300);
@@ -32,28 +37,36 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final Color _glassWhite = Colors.white.withOpacity(0.05);
   final Color _glassBorder = Colors.white.withOpacity(0.1);
 
-  bool _isPasswordVisible = false;
-
-  // --- 1. PICK IMAGE ---
   Future<void> _pickImage() async {
+    if (_currentStepIndex >= _steps.length && _faceAngles.length == 3) {
+      setState(() {
+        _currentStepIndex = 0;
+        _faceAngles.clear();
+      });
+    }
+
     final XFile? returnedImage = await _picker.pickImage(
       source: ImageSource.camera, 
-      imageQuality: 50, 
+      preferredCameraDevice: CameraDevice.front,
+      imageQuality: 70, 
     );
 
     if (returnedImage != null) {
       final Uint8List bytes = await returnedImage.readAsBytes();
       setState(() {
-        _imageBytes = bytes;
+        _faceAngles[_steps[_currentStepIndex]] = bytes;
+        if (_currentStepIndex < _steps.length - 1) {
+          _currentStepIndex++;
+        } else {
+          _currentStepIndex = 3; 
+        }
       });
     }
   }
 
-  // --- 2. SECURE REGISTRATION ---
   Future<void> _registerUser() async {
-    // A. Validation
-    if (_imageBytes == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("⚠️ Please take a photo first!")));
+    if (_faceAngles.length < 3) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("⚠️ Please provide all 3 face angles!")));
       return;
     }
     if (_nameController.text.isEmpty || _emailController.text.isEmpty || _passController.text.isEmpty) {
@@ -68,60 +81,43 @@ class _SignUpScreenState extends State<SignUpScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final supabase = Supabase.instance.client;
+      final String userEmail = _emailController.text.trim();
+      final String emailClean = userEmail.replaceAll('@gmail.com', '').replaceAll('.', '_');
 
-      // B. Create Auth User (The Secure Step)
-      final AuthResponse res = await supabase.auth.signUp(
-        email: _emailController.text.trim(),
+      await Amplify.Auth.signUp(
+        username: userEmail,
         password: _passController.text,
+        options: SignUpOptions(
+          userAttributes: {
+            AuthUserAttributeKey.email: userEmail,
+            AuthUserAttributeKey.name: _nameController.text.trim(),
+          },
+        ),
       );
 
-      final User? user = res.user;
-
-      if (user != null) {
-        // C. Upload Image using the User's Secure ID
-        final String path = '${user.id}/face_entry.jpg';
+      for (String angle in _faceAngles.keys) {
+        final String pathName = 'public/face_entries/${emailClean}_Owner_Self_$angle.jpg';
         
-        await supabase.storage.from('face_entries').uploadBinary(
-          path,
-          _imageBytes!,
-          fileOptions: const FileOptions(upsert: true),
-        );
-
-        // D. Get Public URL
-        final String imageUrl = supabase.storage.from('face_entries').getPublicUrl(path);
-
-        // E. Save Profile Data (Linked to Auth ID)
-        await supabase.from('users').insert({
-          'id': user.id, // <--- IMPORTANT: Links this row to the Auth User
-          'name': _nameController.text.trim(),
-          'email': _emailController.text.trim(),
-          'photo_url': imageUrl,
-          'created_at': DateTime.now().toIso8601String(),
-        });
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text("✅ Account Created! You can now login."),
-              backgroundColor: Colors.green,
-            )
-          );
-          Navigator.pop(context); // Return to login screen
-        }
+        await Amplify.Storage.uploadData(
+          data: StorageDataPayload.bytes(_faceAngles[angle]!),
+          path: StoragePath.fromString(pathName),
+        ).result;
       }
-    } on AuthException catch (e) {
-      if (mounted) {
-         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Auth Error: ${e.message}"), backgroundColor: Colors.red)
-        );
-      }
-    } catch (e) {
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red)
+          const SnackBar(content: Text("✅ Account Created! Sending Verification Code..."), backgroundColor: Colors.green)
+        );
+
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => EmailConfirmationScreen(email: userEmail),
+          ),
         );
       }
+    } on AuthException catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: ${e.message}"), backgroundColor: Colors.red));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -129,11 +125,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   @override
   Widget build(BuildContext context) {
+    String instruction = _currentStepIndex == 0 ? "Look Straight" : 
+                         _currentStepIndex == 1 ? "Turn Left" : 
+                         _currentStepIndex == 2 ? "Turn Right" : "Captured!";
+
     return Scaffold(
       backgroundColor: _bgDark,
       body: Stack(
         children: [
-          // Background Glow
           Positioned(
             top: -100, right: -100,
             child: Container(
@@ -142,7 +141,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 shape: BoxShape.circle,
                 gradient: RadialGradient(colors: [_accentColor.withOpacity(0.15), Colors.transparent]),
               ),
-            ),
+            ).animate(onPlay: (controller) => controller.repeat(reverse: true))
+             .scaleXY(end: 1.2, duration: 4.seconds, curve: Curves.easeInOut)
+             .fadeIn(duration: 2.seconds),
           ),
 
           SafeArea(
@@ -155,61 +156,77 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     icon: const Icon(Icons.arrow_back, color: Colors.white),
                     onPressed: () => Navigator.pop(context),
                   ),
-                  const SizedBox(height: 10),
-                  Text("Biometric Profile", style: GoogleFonts.orbitron(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
-                  Text("Upload your face for Magic Mirror access", style: GoogleFonts.outfit(color: Colors.white54, fontSize: 14)),
+                  Text("Biometric Profile", style: GoogleFonts.orbitron(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold))
+                    .animate(onPlay: (controller) => controller.repeat(reverse: true))
+                    .shimmer(duration: 2.seconds, color: _accentColor.withOpacity(0.5)),
+                  Text("Register your face for ReflectStudio", style: GoogleFonts.outfit(color: Colors.white54, fontSize: 14)),
 
                   const SizedBox(height: 30),
 
-                  // Camera Widget
+                  // Guided Camera UI
                   Center(
-                    child: GestureDetector(
-                      onTap: _pickImage,
-                      child: Container(
-                        height: 120, width: 120,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: _glassWhite,
-                          border: Border.all(color: _imageBytes != null ? _accentColor : _glassBorder, width: 2),
-                          boxShadow: _imageBytes != null ? [BoxShadow(color: _accentColor.withOpacity(0.3), blurRadius: 20, spreadRadius: 5)] : [],
-                        ),
-                        child: _imageBytes != null
-                            ? ClipOval(child: Image.memory(_imageBytes!, fit: BoxFit.cover))
-                            : Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(Icons.camera_alt_outlined, color: _accentColor, size: 40),
-                                  const SizedBox(height: 5),
-                                  Text("Add Photo", style: GoogleFonts.outfit(color: Colors.white54, fontSize: 10)),
-                                ],
+                    child: Column(
+                      children: [
+                        GestureDetector(
+                          onTap: _pickImage,
+                          child: Container(
+                            height: 130, width: 130,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: _glassWhite,
+                              border: Border.all(
+                                color: _faceAngles.length == 3 ? _accentColor : _glassBorder, 
+                                width: 2
                               ),
-                      ),
+                              boxShadow: _faceAngles.length == 3 ? [BoxShadow(color: _accentColor.withOpacity(0.2), blurRadius: 20)] : [],
+                            ),
+                            child: _faceAngles[_steps[_currentStepIndex == 3 ? 0 : _currentStepIndex]] != null
+                                ? ClipOval(child: Image.memory(_faceAngles[_steps[_currentStepIndex == 3 ? 0 : _currentStepIndex]]!, fit: BoxFit.cover))
+                                : Icon(Icons.camera_front_rounded, color: _accentColor, size: 45),
+                          ).animate(target: _faceAngles.length == 3 ? 1 : 0).shimmer(duration: 1.seconds, color: Colors.white),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(instruction.toUpperCase(), style: GoogleFonts.orbitron(color: _accentColor, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1))
+                          .animate(onPlay: (controller) => controller.repeat(reverse: true)).fadeIn().fadeOut(duration: 1.seconds),
+                        
+                        const SizedBox(height: 10),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: List.generate(3, (index) => Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 4),
+                            width: 8, height: 8,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: _faceAngles.containsKey(_steps[index]) ? _accentColor : Colors.white10,
+                            ),
+                          )),
+                        )
+                      ],
                     ),
                   ),
                   
-                  const SizedBox(height: 40),
+                  const SizedBox(height: 30),
 
                   _buildLabel("Full Name"),
                   _buildGlassTextField(controller: _nameController, hint: "Enter your full name"),
                   
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 15),
 
                   _buildLabel("Email address"),
                   _buildGlassTextField(controller: _emailController, hint: "Enter your email"),
 
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 15),
 
                   _buildLabel("Password"),
                   _buildGlassTextField(controller: _passController, hint: "Create a password", isPassword: true),
 
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 15),
 
                   _buildLabel("Confirm Password"),
                   _buildGlassTextField(controller: _confirmPassController, hint: "Confirm your password", isPassword: true),
 
-                  const SizedBox(height: 50),
+                  const SizedBox(height: 40),
 
-                  // Register Button
                   SizedBox(
                     width: double.infinity, height: 55,
                     child: ElevatedButton(
@@ -218,15 +235,18 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         backgroundColor: _accentColor,
                         foregroundColor: Colors.black,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                        elevation: 10,
-                        shadowColor: _accentColor.withOpacity(0.4),
                       ),
                       child: _isLoading 
                         ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
-                        : Text("REGISTER USER", style: GoogleFonts.orbitron(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1)),
+                        : Text("CREATE PROFILE", style: GoogleFonts.orbitron(fontSize: 16, fontWeight: FontWeight.bold)),
                     ),
-                  ),
-                ],
+                  ).animate(onPlay: (controller) => controller.repeat(reverse: true))
+                   .boxShadow(
+                     begin: BoxShadow(color: _accentColor.withOpacity(0.2), blurRadius: 5, spreadRadius: 0),
+                     end: BoxShadow(color: _accentColor.withOpacity(0.6), blurRadius: 15, spreadRadius: 2),
+                     duration: 2.seconds,
+                   ),
+                ].animate(interval: 100.ms).fade(duration: 500.ms).slideY(begin: 0.1, end: 0, curve: Curves.easeOutQuad),
               ),
             ),
           ),
@@ -237,39 +257,33 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   Widget _buildLabel(String text) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0, left: 5),
-      child: Text(text, style: GoogleFonts.orbitron(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 1)),
+      padding: const EdgeInsets.only(bottom: 6.0, left: 5),
+      child: Text(text, style: GoogleFonts.orbitron(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
     );
   }
 
   Widget _buildGlassTextField({required TextEditingController controller, required String hint, bool isPassword = false}) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(15),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-        child: Container(
-          decoration: BoxDecoration(
-            color: _glassWhite,
-            borderRadius: BorderRadius.circular(15),
-            border: Border.all(color: _glassBorder),
-          ),
-          child: TextField(
-            controller: controller,
-            obscureText: isPassword && !_isPasswordVisible,
-            style: GoogleFonts.outfit(color: Colors.white),
-            decoration: InputDecoration(
-              hintText: hint,
-              hintStyle: GoogleFonts.outfit(color: Colors.white24),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-              border: InputBorder.none,
-              suffixIcon: isPassword 
-                ? IconButton(
-                    icon: Icon(_isPasswordVisible ? Icons.visibility : Icons.visibility_off, color: Colors.white54),
-                    onPressed: () => setState(() => _isPasswordVisible = !_isPasswordVisible),
-                  )
-                : null,
-            ),
-          ),
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.08), 
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: Colors.white.withOpacity(0.1)),
+      ),
+      child: TextField(
+        controller: controller,
+        obscureText: isPassword && !_isPasswordVisible,
+        style: GoogleFonts.outfit(color: Colors.white),
+        decoration: InputDecoration(
+          hintText: hint,
+          hintStyle: GoogleFonts.outfit(color: Colors.white24),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+          border: InputBorder.none,
+          suffixIcon: isPassword 
+            ? IconButton(
+                icon: Icon(_isPasswordVisible ? Icons.visibility : Icons.visibility_off, color: Colors.white54),
+                onPressed: () => setState(() => _isPasswordVisible = !_isPasswordVisible),
+              )
+            : null,
         ),
       ),
     );
