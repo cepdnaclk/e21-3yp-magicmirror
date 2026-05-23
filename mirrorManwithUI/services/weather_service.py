@@ -1,5 +1,6 @@
 import os
 import requests
+from datetime import datetime
 from dotenv import load_dotenv
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -14,46 +15,64 @@ LON = os.getenv("LONGITUDE")
 last_weather_data = None
 
 
-def generate_suggestions(weather):
+def generate_gentle_suggestions(today_forecasts):
     suggestions = []
 
-    temperature = weather["temperature"]
-    humidity = weather["humidity"]
-    condition = weather["condition"].lower()
+    will_rain = False
+    will_thunder = False
+    max_temp = -100
+    high_humidity = False
 
-    if "rain" in condition:
+    today = datetime.now().date()
+
+    for item in today_forecasts:
+        forecast_time = datetime.fromtimestamp(item["dt"])
+
+        if forecast_time.date() != today:
+            continue
+
+        condition = item["weather"][0]["description"].lower()
+        temp = item["main"]["temp"]
+        humidity = item["main"]["humidity"]
+
+        max_temp = max(max_temp, temp)
+
+        if "rain" in condition:
+            will_rain = True
+
+        if "thunderstorm" in condition:
+            will_thunder = True
+
+        if humidity >= 85:
+            high_humidity = True
+
+    if will_thunder:
         suggestions.append({
-            "message": "There is a chance of rain today. Please take an umbrella.",
+            "message": "There may be a thunderstorm today. It would be safer to stay indoors if possible.",
+            "priority": "high"
+        })
+
+    if will_rain:
+        suggestions.append({
+            "message": "It may rain later today. Taking an umbrella would be a good idea.",
             "priority": "medium"
         })
 
-    if "thunderstorm" in condition:
+    if max_temp >= 32:
         suggestions.append({
-            "message": "Thunderstorm conditions are expected. It is safer to avoid going outside.",
-            "priority": "high"
+            "message": "It may get quite warm today. Please remember to drink enough water.",
+            "priority": "medium"
         })
 
-    if temperature >= 32:
+    if high_humidity:
         suggestions.append({
-            "message": "It is quite hot today. Please drink enough water.",
-            "priority": "high"
-        })
-
-    if temperature <= 20:
-        suggestions.append({
-            "message": "It is a bit cold today. Please wear warm clothes.",
+            "message": "The air may feel a little heavy today. Try to stay cool and comfortable.",
             "priority": "low"
-        })
-
-    if humidity >= 85:
-        suggestions.append({
-            "message": "Humidity is high today. Try to stay cool and comfortable.",
-            "priority": "medium"
         })
 
     if not suggestions:
         suggestions.append({
-            "message": "Weather looks normal today. Have a pleasant day.",
+            "message": "The weather looks comfortable today. Have a pleasant day.",
             "priority": "low"
         })
 
@@ -63,36 +82,39 @@ def generate_suggestions(weather):
 def get_current_weather():
     global last_weather_data
 
-    url = "https://api.openweathermap.org/data/2.5/weather"
-
-    params = {
-        "lat": LAT,
-        "lon": LON,
-        "appid": API_KEY,
-        "units": "metric"
-    }
-
     try:
-        response = requests.get(url, params=params, timeout=10)
-        print("Status Code:", response.status_code)
+        current_url = "https://api.openweathermap.org/data/2.5/weather"
+        forecast_url = "https://api.openweathermap.org/data/2.5/forecast"
 
-        data = response.json()
+        params = {
+            "lat": LAT,
+            "lon": LON,
+            "appid": API_KEY,
+            "units": "metric"
+        }
 
-        if response.status_code != 200:
-            print("API Error:", data)
+        current_response = requests.get(current_url, params=params, timeout=10)
+        forecast_response = requests.get(forecast_url, params=params, timeout=10)
+
+        current_data = current_response.json()
+        forecast_data = forecast_response.json()
+
+        if current_response.status_code != 200:
+            print("Current weather API error:", current_data)
+            return last_weather_data
+
+        if forecast_response.status_code != 200:
+            print("Forecast API error:", forecast_data)
             return last_weather_data
 
         weather_data = {
-            "temperature": data["main"]["temp"],
-            "humidity": data["main"]["humidity"],
-            "condition": data["weather"][0]["description"],
-            "suggestions": []
+            "temperature": round(current_data["main"]["temp"]),
+            "humidity": current_data["main"]["humidity"],
+            "condition": current_data["weather"][0]["description"],
+            "suggestions": generate_gentle_suggestions(forecast_data["list"])
         }
 
-        weather_data["suggestions"] = generate_suggestions(weather_data)
-
         last_weather_data = weather_data
-
         return weather_data
 
     except Exception as e:
@@ -102,5 +124,4 @@ def get_current_weather():
 
 if __name__ == "__main__":
     weather = get_current_weather()
-    print("Weather Data:")
     print(weather)
