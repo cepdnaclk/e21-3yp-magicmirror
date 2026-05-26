@@ -21,14 +21,16 @@
 
 import 'package:amplify_core/amplify_core.dart' as amplify_core;
 import 'FamilyMember.dart';
+import 'Reminder.dart';
 
 export 'FamilyMember.dart';
+export 'Reminder.dart';
 
 class ModelProvider implements amplify_core.ModelProviderInterface {
   @override
-  String version = "735130c47af2c604026be22f9e2c4df6";
+  String version = "e18f4f744573974dd1361f3047aabedb";
   @override
-  List<amplify_core.ModelSchema> modelSchemas = [FamilyMember.schema];
+  List<amplify_core.ModelSchema> modelSchemas = [FamilyMember.schema, Reminder.schema];
   @override
   List<amplify_core.ModelSchema> customTypeSchemas = [];
   static final ModelProvider _instance = ModelProvider();
@@ -39,6 +41,8 @@ class ModelProvider implements amplify_core.ModelProviderInterface {
     switch(modelName) {
       case "FamilyMember":
         return FamilyMember.classType;
+      case "Reminder":
+        return Reminder.classType;
       default:
         throw Exception("Failed to find model in model provider for model name: " + modelName);
     }

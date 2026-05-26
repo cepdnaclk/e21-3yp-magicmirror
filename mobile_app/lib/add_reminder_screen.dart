@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:amplify_flutter/amplify_flutter.dart';
+import 'package:amplify_api/amplify_api.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'models/ModelProvider.dart';
 
 class AddReminderScreen extends StatefulWidget {
   const AddReminderScreen({super.key});
@@ -28,22 +30,23 @@ class _AddReminderScreenState extends State<AddReminderScreen> {
     setState(() => _isSending = true);
 
     try {
-      final attributes = await Amplify.Auth.fetchUserAttributes();
-      final emailAttr = attributes.firstWhere((attr) => attr.userAttributeKey == AuthUserAttributeKey.email);
-      final userPrefix = emailAttr.value.replaceAll('@gmail.com', '');
-
       String dateStr = _selectedDate != null ? "${_selectedDate!.month}/${_selectedDate!.day}/${_selectedDate!.year}" : "Today";
       String timeStr = _selectedTime != null ? _selectedTime!.format(context) : "Anytime";
       
-      String finalMessage = "📅 Upcoming: $dateStr at $timeStr\n👉 ${_reasonController.text}";
+      // Create a new Reminder model instance
+      final newReminder = Reminder(
+        date: dateStr,
+        time: timeStr,
+        reason: _reasonController.text.trim(),
+      );
 
-      final String timestamp = DateTime.now().millisecondsSinceEpoch.toString();
-      final String pathName = 'public/reminders/${userPrefix}_Task_$timestamp.txt';
+      // Save to DynamoDB via Amplify API
+      final request = ModelMutations.create(newReminder);
+      final response = await Amplify.API.mutate(request: request).response;
 
-      await Amplify.Storage.uploadData(
-        data: StorageDataPayload.string(finalMessage),
-        path: StoragePath.fromString(pathName),
-      ).result;
+      if (response.hasErrors) {
+        throw Exception(response.errors.first.message);
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("✅ Task added to Priority Schedule!"), backgroundColor: Colors.green));

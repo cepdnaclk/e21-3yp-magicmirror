@@ -31,11 +31,9 @@ def send_alert_to_app(person_name, emotion):
         "status": "unread"
     }
     
-    # Get the unique mirror/user ID from .env
-    user_id = os.getenv('USER_ID', 'default_user')
-    
-    # Path read by your App, saved inside that user's specific folder
-    file_name = f"public/alerts/{user_id}/alert_{person_name}_{timestamp}.json"
+    # Targeted Upload: Save the alert INSIDE the specific detected person's folder!
+    # AWS Rekognition passes the ExternalImageId into 'person_name'
+    file_name = f"public/alerts/{person_name}/alert_{timestamp}.json"
     
     try:
         s3.put_object(

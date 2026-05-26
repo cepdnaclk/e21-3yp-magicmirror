@@ -17,7 +17,7 @@ class AlertService {
     }
   }
 
-  // Notification Trigger (English)
+  // Notification Trigger
   void _triggerNotification(String body) async {
     const androidDetails = AndroidNotificationDetails(
       'reflect_os_alerts',
@@ -46,16 +46,16 @@ class AlertService {
         // 2. Only look for alerts inside THIS user's folder!
         final listResult = await Amplify.Storage.list(
           path: StoragePath.fromString('public/alerts/$userId/'),
-        ).result; // මෙහි .result අනිවාර්යයි
+        ).result; // .result is mandatory here
 
-        // අලුත් JSON files තිබේ නම්
+        // If there are new JSON files
         if (listResult.items.isNotEmpty) {
           for (var item in listResult.items) {
-            // "alerts/" කියන path එක පමණක් නොව ඇත්තම file එකක් දැයි බැලීම
+            // Verify it is an actual .json file and not just the directory path
             if (item.path.contains('.json')) {
               _triggerNotification("A negative mood was detected. Please check on your loved one.");
 
-              // එකම alert එක නැවත පෙන්වීම වැළැක්වීමට S3 එකෙන් file එක අයින් කිරීම
+              // Remove the file from S3 to prevent showing the same alert repeatedly
               await Amplify.Storage.remove(
                 path: StoragePath.fromString(item.path),
               ).result;

@@ -9,3 +9,10 @@ type FamilyMember @model @auth(rules: [{allow: owner}]) {
   imagePaths: [String]
 }
 
+type Reminder @model @auth(rules: [{allow: owner}]) {
+  id: ID!
+  date: String!
+  time: String!
+  reason: String!
+}
+

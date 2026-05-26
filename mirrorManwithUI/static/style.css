@@ -1,49 +1,130 @@
+:root {
+    --gold: #FFD700;
+    --cyan: #00f2ff;
+    --bg-black: #000000;
+}
+
 body {
+    background-color: var(--bg-black);
+    color: white;
+    font-family: 'Inter', 'Noto Sans Sinhala', sans-serif;
     margin: 0;
-    background-color: #000000; /* Pure black for reflection */
-    color: #ffffff;
-    font-family: 'Montserrat', sans-serif;
     overflow: hidden;
+    height: 100vh;
 }
 
-#mirror-wrapper { position: relative; width: 100vw; height: 100vh; }
-
-/* GLASS-MORPHISM CARDS */
-.glass-card {
-    background: rgba(255, 255, 255, 0.03);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 15px;
-    padding: 25px;
+/* Header */
+.header {
+    position: absolute;
+    top: 40px;
+    width: 100%;
+    text-align: center;
 }
 
-.widget { position: absolute; transition: all 0.8s ease-in-out; }
-.top-left { top: 30px; left: 30px; }
-.top-right { top: 30px; right: 30px; text-align: right; }
-.bottom-left { bottom: 30px; left: 30px; width: 320px; }
-
-/* CYBERPUNK GLOW */
 #clock {
-    font-size: 90px; margin: 0; font-weight: 900;
-    text-shadow: 0 0 20px rgba(255, 255, 255, 0.5), 0 0 40px rgba(0, 212, 255, 0.5);
+    font-size: 140px;
+    font-weight: 800;
+    line-height: 1;
+    text-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
 }
 
-.cyan-glow { color: #00d4ff; text-shadow: 0 0 10px #00d4ff; letter-spacing: 2px; }
-
-#calendar-list { list-style: none; padding: 0; font-weight: 300; }
-#calendar-list li { 
-    margin-bottom: 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); 
-    padding-bottom: 5px; font-size: 18px; 
+#date-en {
+    font-size: 38px;
+    color: var(--gold);
+    margin-top: 10px;
 }
 
-.time { color: #00d4ff; font-weight: 700; margin-right: 10px; }
-
-/* TRANSITION LOGIC */
-#ui-layer.hidden { opacity: 0; transform: scale(1.05); pointer-events: none; }
-#video-layer {
-    position: absolute; width: 100%; height: 100%;
-    display: flex; justify-content: center; align-items: center;
-    opacity: 0; transition: opacity 1.2s ease;
+/* Avatar Zone */
+#assistant-zone {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    transition: opacity 0.8s ease-in-out;
 }
-#video-layer.visible { opacity: 1; }
-#mirror-video { width: 65%; filter: brightness(0.9) contrast(1.1); }
+
+.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+#avatar-container {
+    filter: drop-shadow(0 0 30px var(--cyan));
+}
+
+#status-text {
+    font-size: 40px;
+    color: var(--cyan);
+    text-shadow: 0 0 10px rgba(0, 242, 255, 0.5);
+    margin-top: 20px;
+}
+
+/* Footer Cards */
+.footer {
+    position: absolute;
+    bottom: 50px;
+    width: 90%;
+    left: 5%;
+    display: flex;
+    justify-content: space-between;
+}
+
+.card {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 25px 40px;
+    border-radius: 30px;
+    border-left: 10px solid var(--gold);
+    min-width: 400px;
+}
+
+.card-icon {
+    font-size: 45px;
+    display: block;
+    margin-bottom: 10px;
+}
+
+.card-label {
+    font-size: 18px;
+    color: #aaa;
+    letter-spacing: 1px;
+}
+
+.card-content {
+    font-size: 32px;
+    font-weight: bold;
+    margin-top: 5px;
+}
+
+/* Main section that controls the entire UI */
+#mirror-ui {
+    transition: all 0.8s ease-in-out;
+    opacity: 1;
+}
+
+/* Fade out everything else when the assistant appears */
+.assistant-active #mirror-ui>.header,
+.assistant-active #mirror-ui>.footer {
+    opacity: 0;
+    transform: translateY(-20px);
+    /* Move slightly upwards and fade out */
+    pointer-events: none;
+}
+
+/* Assistant display zone */
+#assistant-zone {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 100;
+    transition: all 0.8s ease;
+    opacity: 0;
+    visibility: hidden;
+}
+
+/* Appearance when the assistant wakes up */
+#assistant-zone.active {
+    opacity: 1;
+    visibility: visible;
+}

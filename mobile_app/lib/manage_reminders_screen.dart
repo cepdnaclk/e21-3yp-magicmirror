@@ -1,8 +1,9 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:amplify_flutter/amplify_flutter.dart';
+import 'package:amplify_api/amplify_api.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'models/ModelProvider.dart';
 import 'add_reminder_screen.dart';
 import 'edit_reminder_screen.dart';
 
@@ -17,7 +18,7 @@ class _ManageRemindersScreenState extends State<ManageRemindersScreen> {
   final Color _accentColor = const Color(0xFFC4D300);
   final Color _bgDark = const Color(0xFF0A0B10);
   
-  List<Map<String, dynamic>> _reminders = [];
+  List<Reminder> _reminders = [];
   bool _isLoading = true;
 
   @override
@@ -29,27 +30,14 @@ class _ManageRemindersScreenState extends State<ManageRemindersScreen> {
   Future<void> _loadReminders() async {
     setState(() => _isLoading = true);
     try {
-      final result = await Amplify.Storage.list(
-        path: const StoragePath.fromString('public/reminders/'),
-      ).result;
+      final request = ModelQueries.list(Reminder.classType);
+      final response = await Amplify.API.query(request: request).response;
 
-      List<Map<String, dynamic>> reminders = [];
-      
-      for (var item in result.items) {
-        if (item.path.endsWith('/')) continue; 
-        
-        // Download text file content
-        final dataResult = await Amplify.Storage.downloadData(
-          path: StoragePath.fromString(item.path)
-        ).result;
-        
-        final text = utf8.decode(dataResult.bytes);
-
-        reminders.add({
-          'path': item.path,
-          'text': text,
-        });
+      if (response.hasErrors) {
+        throw Exception(response.errors.first.message);
       }
+
+      final reminders = response.data?.items.whereType<Reminder>().toList() ?? [];
 
       if (mounted) {
         setState(() {
@@ -65,7 +53,7 @@ class _ManageRemindersScreenState extends State<ManageRemindersScreen> {
     }
   }
 
-  Future<void> _deleteReminder(String path) async {
+  Future<void> _deleteReminder(Reminder reminder) async {
     bool confirm = await showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -83,9 +71,12 @@ class _ManageRemindersScreenState extends State<ManageRemindersScreen> {
 
     setState(() => _isLoading = true);
     try {
-      await Amplify.Storage.remove(
-        path: StoragePath.fromString(path)
-      ).result;
+      final request = ModelMutations.delete(reminder);
+      final response = await Amplify.API.mutate(request: request).response;
+
+      if (response.hasErrors) {
+        throw Exception(response.errors.first.message);
+      }
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("✅ Reminder Deleted!"), backgroundColor: Colors.green));
@@ -165,7 +156,7 @@ class _ManageRemindersScreenState extends State<ManageRemindersScreen> {
     );
   }
 
-  Widget _buildReminderCard(Map<String, dynamic> reminder) {
+  Widget _buildReminderCard(Reminder reminder) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
@@ -180,9 +171,19 @@ class _ManageRemindersScreenState extends State<ManageRemindersScreen> {
           Icon(Icons.event_note, color: _accentColor, size: 28),
           const SizedBox(width: 16),
           Expanded(
-            child: Text(
-              reminder['text'], 
-              style: GoogleFonts.outfit(color: Colors.white, fontSize: 15, height: 1.4),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "📅 ${reminder.date} at ${reminder.time}",
+                  style: GoogleFonts.orbitron(color: _accentColor, fontSize: 13, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  reminder.reason, 
+                  style: GoogleFonts.outfit(color: Colors.white, fontSize: 15, height: 1.4),
+                ),
+              ],
             ),
           ),
           Row(
@@ -202,7 +203,7 @@ class _ManageRemindersScreenState extends State<ManageRemindersScreen> {
               ),
               IconButton(
                 icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
-                onPressed: () => _deleteReminder(reminder['path']),
+                onPressed: () => _deleteReminder(reminder),
               ),
             ],
           ),

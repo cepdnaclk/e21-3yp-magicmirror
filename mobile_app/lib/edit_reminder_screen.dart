@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:amplify_flutter/amplify_flutter.dart';
+import 'package:amplify_api/amplify_api.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'models/ModelProvider.dart';
 
 class EditReminderScreen extends StatefulWidget {
-  final Map<String, dynamic> reminder;
+  final Reminder reminder;
 
   const EditReminderScreen({super.key, required this.reminder});
 
@@ -22,7 +24,7 @@ class _EditReminderScreenState extends State<EditReminderScreen> {
   @override
   void initState() {
     super.initState();
-    _textController = TextEditingController(text: widget.reminder['text']);
+    _textController = TextEditingController(text: widget.reminder.reason);
   }
 
   Future<void> _updateReminder() async {
@@ -34,10 +36,16 @@ class _EditReminderScreenState extends State<EditReminderScreen> {
     setState(() => _isSaving = true);
 
     try {
-      await Amplify.Storage.uploadData(
-        data: StorageDataPayload.string(_textController.text.trim()),
-        path: StoragePath.fromString(widget.reminder['path']),
-      ).result;
+      final updatedReminder = widget.reminder.copyWith(
+        reason: _textController.text.trim()
+      );
+
+      final request = ModelMutations.update(updatedReminder);
+      final response = await Amplify.API.mutate(request: request).response;
+
+      if (response.hasErrors) {
+        throw Exception(response.errors.first.message);
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("✅ Reminder updated!"), backgroundColor: Colors.green));

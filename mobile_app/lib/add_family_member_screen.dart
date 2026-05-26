@@ -62,7 +62,7 @@ class _AddFamilyMemberScreenState extends State<AddFamilyMemberScreen> {
       return;
     }
     if (_nameController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("⚠️ Please enter a name!")));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("⚠️ Please enter their email!")));
       return;
     }
 
@@ -72,11 +72,11 @@ class _AddFamilyMemberScreenState extends State<AddFamilyMemberScreen> {
       final attributes = await Amplify.Auth.fetchUserAttributes();
       final emailAttr = attributes.firstWhere((attr) => attr.userAttributeKey == AuthUserAttributeKey.email);
       final mainUserEmail = emailAttr.value.replaceAll('@gmail.com', '');
-      final cleanName = _nameController.text.trim().replaceAll(' ', '_');
+      final cleanName = _nameController.text.trim().replaceAll('@gmail.com', '').replaceAll(' ', '_').toLowerCase();
 
       // Loop through and upload each angle
       for (String angle in _faceAngles.keys) {
-        final String pathName = 'public/face_entries/${mainUserEmail}_${_selectedRelation}_${cleanName}_$angle.jpg';
+        final String pathName = 'public/face_entries/${cleanName}_$angle.jpg';
 
         await Amplify.Storage.uploadData(
           data: StorageDataPayload.bytes(_faceAngles[angle]!),
@@ -89,9 +89,9 @@ class _AddFamilyMemberScreenState extends State<AddFamilyMemberScreen> {
           name: _nameController.text.trim(),
           relationship: _selectedRelation,
           imagePaths: [
-            'public/face_entries/${mainUserEmail}_${_selectedRelation}_${cleanName}_front.jpg',
-            'public/face_entries/${mainUserEmail}_${_selectedRelation}_${cleanName}_left.jpg',
-            'public/face_entries/${mainUserEmail}_${_selectedRelation}_${cleanName}_right.jpg'
+            'public/face_entries/${cleanName}_front.jpg',
+            'public/face_entries/${cleanName}_left.jpg',
+            'public/face_entries/${cleanName}_right.jpg'
           ],
         );
 
@@ -217,7 +217,7 @@ class _AddFamilyMemberScreenState extends State<AddFamilyMemberScreen> {
 
                   const SizedBox(height: 20),
 
-                  _buildLabel("First Name"),
+                  _buildLabel("Email Address (for login)"),
                   _buildTextField(),
 
                   const SizedBox(height: 40),
@@ -264,7 +264,7 @@ class _AddFamilyMemberScreenState extends State<AddFamilyMemberScreen> {
         controller: _nameController,
         style: GoogleFonts.outfit(color: Colors.white),
         decoration: InputDecoration(
-          hintText: "Enter their name",
+          hintText: "Enter their app email",
           hintStyle: GoogleFonts.outfit(color: Colors.white24),
           contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
           border: InputBorder.none,
