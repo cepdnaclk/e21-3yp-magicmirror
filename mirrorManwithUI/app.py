@@ -7,14 +7,9 @@ import webbrowser
 import time
 import threading
 from fastapi import FastAPI
-<<<<<<< HEAD
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from services.weather_service import get_current_weather
-
-=======
-from fastapi.staticfiles import StaticFiles
->>>>>>> 7ba0e81460e52796aca50480eaeb7445046ac0df
 
 # ================= WINDOWS FIX =================
 if sys.platform.startswith("win"):

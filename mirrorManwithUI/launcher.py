@@ -10,7 +10,10 @@ def start_mirror_system():
     base_dir = os.path.dirname(os.path.abspath(__file__))
     
     # Path to the virtual environment python executable
-    venv_python = os.path.join(base_dir, "..", "venv", "Scripts", "python.exe")
+    if sys.platform.startswith("win"):
+        venv_python = os.path.join(base_dir, "..", "venv", "Scripts", "python.exe")
+    else:
+        venv_python = os.path.join(base_dir, "..", "venv", "bin", "python")
     
     # Use venv_python if it exists, otherwise fallback to sys.executable
     python_exe = venv_python if os.path.exists(venv_python) else sys.executable

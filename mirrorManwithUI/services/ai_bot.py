@@ -30,27 +30,12 @@ class SinhalaBot:
             try:
                 with sr.Microphone() as source:
                     self.recognizer.adjust_for_ambient_noise(source, duration=0.5)
-<<<<<<< HEAD
-                    print("?? Listening for 'Hey mirror'...")
-=======
                     print("?? Listening for 'Hey mirror' or music commands...")
->>>>>>> 7ba0e81460e52796aca50480eaeb7445046ac0df
                     # FIXED: Added to_thread so it doesn't block the AWS S3 watcher!
                     audio = await asyncio.to_thread(
                         self.recognizer.listen, source, timeout=2.0, phrase_time_limit=3.0
                     )
                 try:
-<<<<<<< HEAD
-                    text = await asyncio.to_thread(self.recognizer.recognize_google, audio)
-                    text = text.lower()
-                    print(f"?? Detected: {text}")
-                    if any(trig in text for trig in triggers):
-                        print(f"? Wake word detected! Activating mirror...")
-                        # Show mirror man (hide dashboard, show idle.mp4)
-                        await manager.broadcast("show_mirror")
-                        self.is_active = True
-                        return
-=======
                     is_sinhala_detected = False
                     try:
                         text = await asyncio.to_thread(self.recognizer.recognize_google, audio, language="en-US")
@@ -97,7 +82,6 @@ class SinhalaBot:
                         elif action == 'exit':
                             await music_assistant.stop_music()
 
->>>>>>> 7ba0e81460e52796aca50480eaeb7445046ac0df
                 except sr.UnknownValueError:
                     pass
             except Exception:
@@ -132,14 +116,6 @@ class SinhalaBot:
 
             try:
                 try:
-<<<<<<< HEAD
-                    user_text = await asyncio.to_thread(
-                        self.recognizer.recognize_google, audio_data, language='si-LK'
-                    )
-                    print(f"?? You said: {user_text}")
-                except sr.UnknownValueError:
-                    user_text = ""
-=======
                     # Try to recognize English first
                     user_text = await asyncio.to_thread(
                         self.recognizer.recognize_google, audio_data, language='en-US'
@@ -154,7 +130,6 @@ class SinhalaBot:
                         print(f"?? You said (Sinhala): {user_text}")
                     except sr.UnknownValueError:
                         user_text = ""
->>>>>>> 7ba0e81460e52796aca50480eaeb7445046ac0df
                 except Exception as e:
                     user_text = ""
 
@@ -165,11 +140,7 @@ class SinhalaBot:
                 if any(word in user_text.lower() for word in shutdown_keywords):
                     print("?? Shutdown command received.")
                     await manager.broadcast("talking")
-<<<<<<< HEAD
-                    await asyncio.to_thread(self.speak, "????????, ???? ??????.")
-=======
                     await asyncio.to_thread(self.speak, "ස්තූතියි, නැවත හමුවෙමු.")
->>>>>>> 7ba0e81460e52796aca50480eaeb7445046ac0df
                     self.is_active = False
                     break
 
@@ -211,17 +182,12 @@ class SinhalaBot:
                 self.is_active = False
 
     def speak(self, text):
-<<<<<<< HEAD
-        """High-quality Sinhala TTS that preserves your logic flow"""
-        speak_pygame(text, voice="si-LK-ThiliniNeural")
-=======
         """High-quality TTS that dynamically selects voice based on language"""
         if any('\u0d80' <= c <= '\u0dff' for c in text):
             voice = "si-LK-ThiliniNeural"
         else:
             voice = "en-US-JennyNeural"
         speak_pygame(text, voice=voice)
->>>>>>> 7ba0e81460e52796aca50480eaeb7445046ac0df
 
     def _fallback_speak(self, text):
         from services.tts_service import fallback_speak
@@ -236,11 +202,7 @@ class SinhalaBot:
                 await manager.broadcast("talking")
 
                 # 2. Mirror speaks greeting (logic waits here until audio finishes)
-<<<<<<< HEAD
-                await asyncio.to_thread(self.speak, "????????! ?? ????? ????, ??? ???????")
-=======
                 await asyncio.to_thread(self.speak, "ආයුබෝවන්! මම කෙසේද උදව් කරන්නේ?")
->>>>>>> 7ba0e81460e52796aca50480eaeb7445046ac0df
 
                 # 3. Back to idle before starting conversation
                 await manager.broadcast("idle")
