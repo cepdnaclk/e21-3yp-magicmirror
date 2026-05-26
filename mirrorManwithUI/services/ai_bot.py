@@ -23,6 +23,46 @@ class SinhalaBot:
         self.is_active = False
         self.recognizer = sr.Recognizer()
 
+    async def _recognize_best(self, audio_data):
+        """Run English and Sinhala recognition in parallel and return the best result.
+        
+        The old sequential approach (English first → Sinhala fallback) was unreliable
+        because Google's English recognizer returns garbled text for Sinhala speech
+        instead of raising UnknownValueError, preventing the Sinhala path from ever running.
+        Running both in parallel and picking the result that contains actual Sinhala
+        Unicode characters is significantly more accurate.
+        """
+        async def try_lang(lang):
+            try:
+                return await asyncio.to_thread(
+                    self.recognizer.recognize_google, audio_data, language=lang
+                )
+            except (sr.UnknownValueError, sr.RequestError):
+                return None
+
+        # Fire off both language recognitions at the same time
+        en_text, si_text = await asyncio.gather(
+            try_lang('en-US'),
+            try_lang('si-LK')
+        )
+
+        # If Sinhala recognition returned actual Sinhala Unicode characters, prefer it
+        if si_text and any('\u0d80' <= c <= '\u0dff' for c in si_text):
+            print(f"?? You said (Sinhala): {si_text}")
+            return si_text, True
+
+        # If English recognition returned a result, use it
+        if en_text:
+            print(f"?? You said (English): {en_text}")
+            return en_text, False
+
+        # If only Sinhala returned something (no Sinhala chars, could be romanized)
+        if si_text:
+            print(f"?? You said (Sinhala): {si_text}")
+            return si_text, True
+
+        return "", False
+
     async def detect_wake_word(self):
         """Listen for hotwords without blocking the FastAPI server"""
         triggers = ["hey mirror", "mirror", "hai mera", "hey me", "mera"]
@@ -115,23 +155,8 @@ class SinhalaBot:
                 continue
 
             try:
-                try:
-                    # Try to recognize English first
-                    user_text = await asyncio.to_thread(
-                        self.recognizer.recognize_google, audio_data, language='en-US'
-                    )
-                    print(f"?? You said (English): {user_text}")
-                except sr.UnknownValueError:
-                    # Fallback to Sinhala if English recognition fails
-                    try:
-                        user_text = await asyncio.to_thread(
-                            self.recognizer.recognize_google, audio_data, language='si-LK'
-                        )
-                        print(f"?? You said (Sinhala): {user_text}")
-                    except sr.UnknownValueError:
-                        user_text = ""
-                except Exception as e:
-                    user_text = ""
+                # Run English + Sinhala recognition in parallel for accurate detection
+                user_text, is_sinhala = await self._recognize_best(audio_data)
 
                 if not user_text or not user_text.strip():
                     print("?? No speech detected, ignoring...")
@@ -147,6 +172,13 @@ class SinhalaBot:
                 print("🤔 Mirror is thinking...")
                 await manager.broadcast("thinking")
 
+                # Build an explicit language instruction so Gemini never replies
+                # in the wrong language regardless of its general system prompt.
+                if is_sinhala:
+                    lang_instruction = "IMPORTANT: The user spoke in Sinhala. You MUST reply ONLY in Sinhala script (සිංහල). Do NOT use English."
+                else:
+                    lang_instruction = "IMPORTANT: The user spoke in English. You MUST reply ONLY in English. Do NOT use Sinhala."
+
                 response = await asyncio.to_thread(
                     gemini_client.models.generate_content,
                     model=GEMINI_MODEL,
@@ -155,6 +187,7 @@ class SinhalaBot:
                             role="user",
                             parts=[
                                 types.Part.from_text(text=CUSTOM_PROMPT),
+                                types.Part.from_text(text=lang_instruction),
                                 types.Part.from_text(text=user_text)
                             ]
                         )
