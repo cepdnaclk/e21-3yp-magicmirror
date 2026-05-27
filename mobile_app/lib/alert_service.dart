@@ -36,21 +36,30 @@ class AlertService {
 
   // S3 monitoring logic (Amplify v2 Syntax)
   void startMonitoring() {
+    print("📡 S3 Alert Monitor: Service started");
     Timer.periodic(const Duration(seconds: 15), (timer) async {
       try {
         // 1. Find out who is logged into the app
         final attributes = await Amplify.Auth.fetchUserAttributes();
         final emailAttr = attributes.firstWhere((attr) => attr.userAttributeKey == AuthUserAttributeKey.email);
-        final userId = emailAttr.value.replaceAll('@gmail.com', ''); // e.g., "john_doe"
+        
+        // Split on '@', trim, and force lowercase to match strictly case-sensitive S3 folder names
+        final userId = emailAttr.value.split('@')[0].trim().toLowerCase();
+        
+        final targetPath = 'public/alerts/$userId/';
+        print("🔍 S3 Alert Monitor: Checking path '$targetPath'...");
 
         // 2. Only look for alerts inside THIS user's folder!
         final listResult = await Amplify.Storage.list(
-          path: StoragePath.fromString('public/alerts/$userId/'),
+          path: StoragePath.fromString(targetPath),
         ).result; // .result is mandatory here
+
+        print("📂 S3 Alert Monitor: Found ${listResult.items.length} items in folder");
 
         // If there are new JSON files
         if (listResult.items.isNotEmpty) {
           for (var item in listResult.items) {
+            print("📄 S3 Alert Monitor: Processing file '${item.path}'");
             // Verify it is an actual .json file and not just the directory path
             if (item.path.contains('.json')) {
               _triggerNotification("A negative mood was detected. Please check on your loved one.");
@@ -60,12 +69,13 @@ class AlertService {
                 path: StoragePath.fromString(item.path),
               ).result;
               
-              print("✅ Alert processed and removed: ${item.path}");
+              print("✅ S3 Alert Monitor: Alert processed and removed: ${item.path}");
             }
           }
         }
-      } catch (e) {
-        print("S3 Monitor Error: $e");
+      } catch (e, stacktrace) {
+        print("❌ S3 Alert Monitor Error: $e");
+        print(stacktrace);
       }
     });
   }

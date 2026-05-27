@@ -7,7 +7,7 @@ import threading
 from datetime import datetime
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(override=True)
 
 # --- AWS CONFIG ---
 AWS_ACCESS_KEY = os.getenv('AWS_ACCESS_KEY_ID')
@@ -23,17 +23,20 @@ s3 = boto3.client('s3', aws_access_key_id=AWS_ACCESS_KEY, aws_secret_access_key=
 def send_alert_to_app(person_name, emotion):
     """Uploads an Alert JSON to the S3 bucket"""
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    
+    # Strip the owner suffix to match the mobile app's user ID folder
+    clean_user_id = person_name.replace('_Owner_Self', '')
+    
     alert_data = {
-        "user_id": person_name,
+        "user_id": clean_user_id,
         "emotion": emotion,
         "time": timestamp,
-        "message": f"Attention! {person_name} is currently feeling {emotion}.",
+        "message": f"Attention! {clean_user_id} is currently feeling {emotion}.",
         "status": "unread"
     }
     
     # Targeted Upload: Save the alert INSIDE the specific detected person's folder!
-    # AWS Rekognition passes the ExternalImageId into 'person_name'
-    file_name = f"public/alerts/{person_name}/alert_{timestamp}.json"
+    file_name = f"public/alerts/{clean_user_id}/alert_{timestamp}.json"
     
     try:
         s3.put_object(
