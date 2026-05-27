@@ -30,7 +30,10 @@ class _ManageRemindersScreenState extends State<ManageRemindersScreen> {
   Future<void> _loadReminders() async {
     setState(() => _isLoading = true);
     try {
-      final request = ModelQueries.list(Reminder.classType);
+      final request = ModelQueries.list(
+        Reminder.classType,
+        authorizationMode: APIAuthorizationType.userPools,
+      );
       final response = await Amplify.API.query(request: request).response;
 
       if (response.hasErrors) {
@@ -71,7 +74,10 @@ class _ManageRemindersScreenState extends State<ManageRemindersScreen> {
 
     setState(() => _isLoading = true);
     try {
-      final request = ModelMutations.delete(reminder);
+      final request = ModelMutations.delete(
+        reminder,
+        authorizationMode: APIAuthorizationType.userPools,
+      );
       final response = await Amplify.API.mutate(request: request).response;
 
       if (response.hasErrors) {

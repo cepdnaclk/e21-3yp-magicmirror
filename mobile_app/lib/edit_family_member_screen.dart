@@ -48,7 +48,10 @@ class _EditFamilyMemberScreenState extends State<EditFamilyMemberScreen> {
         relationship: _selectedRelation,
       );
 
-      final request = ModelMutations.update(updatedMember);
+      final request = ModelMutations.update(
+        updatedMember,
+        authorizationMode: APIAuthorizationType.userPools,
+      );
       final response = await Amplify.API.mutate(request: request).response;
 
       if (response.hasErrors) {

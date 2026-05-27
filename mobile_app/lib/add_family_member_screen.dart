@@ -95,7 +95,10 @@ class _AddFamilyMemberScreenState extends State<AddFamilyMemberScreen> {
           ],
         );
 
-        final request = ModelMutations.create(newMember);
+        final request = ModelMutations.create(
+          newMember,
+          authorizationMode: APIAuthorizationType.userPools,
+        );
         final response = await Amplify.API.mutate(request: request).response;
 
         if (response.hasErrors) {

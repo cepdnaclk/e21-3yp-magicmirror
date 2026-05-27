@@ -41,7 +41,10 @@ class _AddReminderScreenState extends State<AddReminderScreen> {
       );
 
       // Save to DynamoDB via Amplify API
-      final request = ModelMutations.create(newReminder);
+      final request = ModelMutations.create(
+        newReminder,
+        authorizationMode: APIAuthorizationType.userPools,
+      );
       final response = await Amplify.API.mutate(request: request).response;
 
       if (response.hasErrors) {

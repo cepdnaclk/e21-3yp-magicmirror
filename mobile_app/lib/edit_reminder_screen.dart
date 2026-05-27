@@ -40,7 +40,10 @@ class _EditReminderScreenState extends State<EditReminderScreen> {
         reason: _textController.text.trim()
       );
 
-      final request = ModelMutations.update(updatedReminder);
+      final request = ModelMutations.update(
+        updatedReminder,
+        authorizationMode: APIAuthorizationType.userPools,
+      );
       final response = await Amplify.API.mutate(request: request).response;
 
       if (response.hasErrors) {

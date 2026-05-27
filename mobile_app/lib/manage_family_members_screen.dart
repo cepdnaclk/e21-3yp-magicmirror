@@ -30,7 +30,10 @@ class _ManageFamilyMembersScreenState extends State<ManageFamilyMembersScreen> {
   Future<void> _loadMembers() async {
     setState(() => _isLoading = true);
     try {
-      final request = ModelQueries.list(FamilyMember.classType);
+      final request = ModelQueries.list(
+        FamilyMember.classType,
+        authorizationMode: APIAuthorizationType.userPools,
+      );
       final response = await Amplify.API.query(request: request).response;
 
       final members = response.data?.items.whereType<FamilyMember>().toList() ?? [];
@@ -69,7 +72,10 @@ class _ManageFamilyMembersScreenState extends State<ManageFamilyMembersScreen> {
 
     setState(() => _isLoading = true);
     try {
-      final request = ModelMutations.delete(member);
+      final request = ModelMutations.delete(
+        member,
+        authorizationMode: APIAuthorizationType.userPools,
+      );
       await Amplify.API.mutate(request: request).response;
       
       // Optionally delete images from S3 here if needed
