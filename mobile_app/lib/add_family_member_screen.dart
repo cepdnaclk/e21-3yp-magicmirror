@@ -71,12 +71,12 @@ class _AddFamilyMemberScreenState extends State<AddFamilyMemberScreen> {
     try {
       final attributes = await Amplify.Auth.fetchUserAttributes();
       final emailAttr = attributes.firstWhere((attr) => attr.userAttributeKey == AuthUserAttributeKey.email);
-      final mainUserEmail = emailAttr.value.replaceAll('@gmail.com', '');
-      final cleanName = _nameController.text.trim().replaceAll('@gmail.com', '').replaceAll(' ', '_').toLowerCase();
+      final mainUserEmail = emailAttr.value.split('@')[0].trim().toLowerCase();
+      final cleanName = _nameController.text.trim().split('@')[0].trim().replaceAll(' ', '_').toLowerCase();
 
       // Loop through and upload each angle
       for (String angle in _faceAngles.keys) {
-        final String pathName = 'public/face_entries/${cleanName}_$angle.jpg';
+        final String pathName = 'public/face_entries/${mainUserEmail}_${cleanName}_$angle.jpg';
 
         await Amplify.Storage.uploadData(
           data: StorageDataPayload.bytes(_faceAngles[angle]!),
@@ -89,9 +89,9 @@ class _AddFamilyMemberScreenState extends State<AddFamilyMemberScreen> {
           name: _nameController.text.trim(),
           relationship: _selectedRelation,
           imagePaths: [
-            'public/face_entries/${cleanName}_front.jpg',
-            'public/face_entries/${cleanName}_left.jpg',
-            'public/face_entries/${cleanName}_right.jpg'
+            'public/face_entries/${mainUserEmail}_${cleanName}_front.jpg',
+            'public/face_entries/${mainUserEmail}_${cleanName}_left.jpg',
+            'public/face_entries/${mainUserEmail}_${cleanName}_right.jpg'
           ],
         );
 
