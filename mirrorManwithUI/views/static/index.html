@@ -1,49 +1,72 @@
-
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ReflectStudio | MirrorMan HUD</title>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;900&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
+    <title>Reflect Studio | Smart Mirror</title>
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600&family=Cormorant+Garamond:wght@400;500;600;700&family=Lora:wght@400;500;600&display=swap"
+        rel="stylesheet">
+
     <link rel="stylesheet" href="/static/style.css">
 </head>
+
 <body>
-    <div id="scan-line"></div>
-    <div id="mirror-wrapper" >
+
+    <!-- Welcome Screen: appears once when the mirror system starts -->
+    <div id="welcome-screen">
+        <div class="welcome-content">
+            <div class="welcome-heart">♡</div>
+            <h1>Reflect Studio</h1>
+            <p>Good to see you</p>
+        </div>
+    </div>
+
+    <div id="mirror-wrapper">
         <div id="ui-layer">
+
             <div class="widget top-left combined-left-container">
                 <div class="glass-card" id="time-container">
-                    <div class="cyan-glow-text">SYSTEM TIME</div>
+                    <div class="cyan-glow-text greeting-title">
+                        Good Day <span class="heart-icon">♡</span>
+                    </div>
+
                     <h1 id="clock">00:00:00</h1>
-                    <p id="date">INITIALIZING...</p>
+                    <p id="date">Initializing...</p>
+                    <p id="gentle-message">Have a lovely day</p>
                 </div>
 
                 <div class="glass-card calendar-widget">
-                    <div class="cyan-glow-text" id="month-name">MONTH_VIEW</div>
+                    <div class="cyan-glow-text" id="month-name">Month View</div>
                     <div id="calendar-grid"></div>
                 </div>
             </div>
 
             <div class="widget top-right glass-card">
-                <div class="cyan-glow-text">ENV_MONITOR</div>
+                <div class="cyan-glow-text">Weather</div>
+
                 <div id="weather-box">
                     <h2 id="temp">--°C</h2>
-                    <p id="desc" class="status-text">FETCHING SENSOR DATA...</p>
-                    <p id="hum">HUMIDITY: --%</p>
-                    <div id="weather-suggestion"> WEATHER SUGGESTION...</div>
+                    <p id="desc" class="status-text">Fetching weather...</p>
+                    <p id="hum">Humidity: --%</p>
+
+                    <div id="weather-suggestion">
+                        Weather suggestion...
+                    </div>
                 </div>
             </div>
 
             <div class="widget bottom-right glass-card">
-                <h3 class="cyan-glow-text">PRIORITY_SCHEDULE</h3>
+                <h3 class="cyan-glow-text">Today</h3>
                 <ul id="calendar-list"></ul>
             </div>
 
         </div>
 
         <div id="big-popup" class="glass-card">
-            <div class="cyan-glow-text">INCOMING_TRANSMISSION</div>
+            <div class="cyan-glow-text">Message</div>
             <div id="popup-text"></div>
         </div>
 
@@ -54,9 +77,9 @@
         </div>
 
         <div class="widget bottom-center glass-card" id="notification-container">
-            <div class="cyan-glow-text">SYSTEM_NOTIFICATIONS</div>
+            <div class="cyan-glow-text">Messages</div>
             <div id="notification-content">
-                <p class="status-text">NO NEW MESSAGES</p>
+                <p class="status-text">No new messages</p>
             </div>
         </div>
     </div>
@@ -64,23 +87,36 @@
     <script>
         function updateTime() {
             const now = new Date();
-            document.getElementById('clock').innerText = now.toLocaleTimeString('en-US', { hour12: false });
-            document.getElementById('date').innerText = now.toDateString().toUpperCase();
+
+            document.getElementById('clock').innerText =
+                now.toLocaleTimeString('en-US', { hour12: false });
+
+            document.getElementById('date').innerText =
+                now.toLocaleDateString('en-US', {
+                    weekday: 'long',
+                    month: 'long',
+                    day: 'numeric',
+                    year: 'numeric'
+                });
         }
+
         setInterval(updateTime, 1000);
         updateTime();
 
         const socket = new WebSocket('ws://' + window.location.host + '/ws');
-       
+
         function addScheduleItem(item) {
             const list = document.getElementById('calendar-list');
+
             const time = item.time || '--:--';
-            const name = item.name || 'UNTITLED';
-            const date = item.date || 'TODAY';
+            const name = item.name || 'Untitled';
+            const date = item.date || 'Today';
+
             const html = `<li>
                         <span class="time-tag">${time}</span> ${name}
                         <span class="schedule-meta">${date}</span>
                     </li>`;
+
             list.insertAdjacentHTML('afterbegin', html);
         }
 
@@ -93,41 +129,49 @@
             const videoLayer = document.getElementById('video-layer');
             const notifyBox = document.getElementById('notification-content');
             const popup = document.getElementById('big-popup');
-           
-            let payload = null;
-            try { payload = JSON.parse(event.data); } catch { payload = event.data; }
 
-            // --- Video State Management ---
+            let payload = null;
+
+            try {
+                payload = JSON.parse(event.data);
+            } catch {
+                payload = event.data;
+            }
+
             if (typeof payload === 'string') {
                 if (payload === 'show_mirror') {
-                    // Wake word detected: hide dashboard, show mirror man with idle.mp4
                     mirrorActive = true;
+
                     uiLayer.classList.add('hidden');
                     videoLayer.classList.add('visible');
+
                     if (!v.src.includes('idle.mp4')) {
                         v.src = 'static/idle.mp4';
                     }
+
                     v.play();
                     return;
                 }
 
                 if (payload === 'hide_mirror') {
-                    // Goodbye: hide mirror man, restore dashboard
                     mirrorActive = false;
+
                     videoLayer.classList.remove('visible');
                     uiLayer.classList.remove('hidden');
+
                     v.pause();
                     return;
                 }
 
                 if (payload === 'idle') {
-                    // Mirror waiting/listening — show idle.mp4 (keep UI hidden if mirror active)
                     if (mirrorActive) {
                         if (!v.src.includes('idle.mp4')) {
                             v.src = 'static/idle.mp4';
                         }
+
                         v.play();
                     }
+
                     return;
                 }
 
@@ -136,6 +180,7 @@
                         v.src = 'static/thinking.mp4';
                         v.play();
                     }
+
                     return;
                 }
 
@@ -144,14 +189,13 @@
                         v.src = 'static/talking.mp4';
                         v.play();
                     }
+
                     return;
                 }
 
-                // Unknown string payload — ignore
                 return;
             }
 
-            // 1. Presence Detection
             if (payload && payload.type === 'presence') {
                 if (payload.value === 'present') {
                     wrapper.classList.remove('black-out');
@@ -159,137 +203,210 @@
                     wrapper.classList.add('black-out');
                     v.pause();
                 }
+
                 return;
             }
 
-            // 2. Notifications & Reminders
             if (payload && (payload.type === 'notification' || payload.type === 'reminder')) {
                 const rawMsg = payload.message;
-                const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
 
-                // Turn on screen if it was off
+                const timestamp = new Date().toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: false
+                });
+
                 wrapper.classList.remove('black-out');
 
-                // Show popup in center
                 popup.innerHTML = `
-                    <div class="cyan-glow-text">INCOMING_TRANSMISSION</div>
-                    <div id="popup-text">${rawMsg.toUpperCase()}</div>
+                    <div class="cyan-glow-text">Message</div>
+                    <div id="popup-text">${rawMsg}</div>
                     <div class="progress-container">
                         <div class="progress-bar"></div>
                     </div>
                 `;
+
                 popup.classList.add('show');
 
-                // Dismiss popup after 10 seconds (matches progress bar animation)
                 setTimeout(() => {
                     popup.classList.remove('show');
 
                     if (payload.type === 'notification') {
-                        const msg = rawMsg.toUpperCase();
+                        const msg = rawMsg;
+
                         const newEntry = document.createElement('div');
                         newEntry.className = 'history-item';
-                       
+
                         const entryId = "msg-" + Date.now();
                         newEntry.id = entryId;
-                        newEntry.innerHTML = `<span style="color:var(--cyan)">[${timestamp}]</span> > ${msg}`;
-                       
-                        if (notifyBox.innerText.includes("NO NEW MESSAGES")) notifyBox.innerHTML = "";
+
+                        newEntry.innerHTML =
+                            `<span style="color:var(--gold)">[${timestamp}]</span> ${msg}`;
+
+                        if (notifyBox.innerText.includes("No new messages")) {
+                            notifyBox.innerHTML = "";
+                        }
+
                         notifyBox.insertBefore(newEntry, notifyBox.firstChild);
 
-                        // Remove after 10 minutes
                         setTimeout(() => {
                             const itemToRemove = document.getElementById(entryId);
+
                             if (itemToRemove) {
                                 itemToRemove.style.opacity = '0';
+
                                 setTimeout(() => {
                                     itemToRemove.remove();
+
                                     if (notifyBox.children.length === 0) {
-                                        notifyBox.innerHTML = '<p class="status-text">NO NEW MESSAGES</p>';
+                                        notifyBox.innerHTML =
+                                            '<p class="status-text">No new messages</p>';
                                     }
                                 }, 500);
                             }
                         }, 600000);
                     }
+
                     else if (payload.type === 'reminder') {
                         try {
-                            let namePart = "UNTITLED", datePart = "TODAY", timePart = "NOW";
+                            let namePart = "Untitled";
+                            let datePart = "Today";
+                            let timePart = "Now";
+
                             if (rawMsg.includes("👉")) {
                                 let parts = rawMsg.split("👉");
-                                namePart = parts[1] ? parts[1].trim() : "UNTITLED";
-                                let dateTimePart = parts[0].replace(/📅 |Upcoming: /gi, "").trim();
+
+                                namePart = parts[1] ? parts[1].trim() : "Untitled";
+
+                                let dateTimePart =
+                                    parts[0].replace(/📅 |Upcoming: /gi, "").trim();
+
                                 let dateTimeSplit = dateTimePart.split(/ at /i);
-                                datePart = dateTimeSplit[0] ? dateTimeSplit[0].trim() : "TODAY";
-                                timePart = dateTimeSplit[1] ? dateTimeSplit[1].trim() : "NOW";
-                            } else { namePart = rawMsg; }
+
+                                datePart = dateTimeSplit[0]
+                                    ? dateTimeSplit[0].trim()
+                                    : "Today";
+
+                                timePart = dateTimeSplit[1]
+                                    ? dateTimeSplit[1].trim()
+                                    : "Now";
+                            } else {
+                                namePart = rawMsg;
+                            }
 
                             addScheduleItem({
-                                time: timePart.toUpperCase(),
-                                name: namePart.toUpperCase(),
-                                date: datePart.toUpperCase()
+                                time: timePart,
+                                name: namePart,
+                                date: datePart
                             });
                         } catch (e) {
-                            addScheduleItem({ time: 'NOW', name: rawMsg.toUpperCase(), date: 'TODAY' });
+                            addScheduleItem({
+                                time: 'Now',
+                                name: rawMsg,
+                                date: 'Today'
+                            });
                         }
                     }
                 }, 10000);
+
                 return;
             }
         };
+
         async function updateMirrorData() {
-    try {
-        const response = await fetch('/api/weather');
-        const result = await response.json();
+            try {
+                const response = await fetch('/api/weather');
+                const result = await response.json();
 
-        if (result.status !== "success") {
-            console.log("Weather unavailable:", result.message);
-            return;
+                if (result.status !== "success") {
+                    console.log("Weather unavailable. Keeping previous weather on screen.");
+                    return;
+                }
+
+                const weather = result.data;
+
+                document.getElementById('temp').innerText =
+                    `${weather.temperature}°C`;
+
+                document.getElementById('hum').innerText =
+                    `Humidity: ${weather.humidity}%`;
+
+                document.getElementById('desc').innerText =
+                    weather.condition;
+
+                if (weather.suggestions && weather.suggestions.length > 0) {
+                    document.getElementById('weather-suggestion').innerText =
+                        weather.suggestions[0].message;
+                }
+
+            } catch (e) {
+                console.log("Weather fetch error. Keeping previous weather on screen:", e);
+            }
         }
-
-        const weather = result.data;
-
-        document.getElementById('temp').innerText =
-            `${weather.temperature}°C`;
-
-        document.getElementById('hum').innerText =
-            `HUMIDITY: ${weather.humidity}%`;
-
-        document.getElementById('desc').innerText =
-            `> ${weather.condition.toUpperCase()}`;
-
-        if (weather.suggestions && weather.suggestions.length > 0) {
-            document.getElementById('weather-suggestion').innerText =
-                weather.suggestions[0].message.toUpperCase();
-        }
-
-    } catch (e) {
-        console.log("Weather fetch error:", e);
-    }
-}
-
-
 
         function buildCalendar() {
             const now = new Date();
+
             const month = now.getMonth();
             const year = now.getFullYear();
-            const monthNames = ["JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"];
-            document.getElementById('month-name').innerText = `${monthNames[month]} ${year}`;
+
+            const monthNames = [
+                "January", "February", "March", "April",
+                "May", "June", "July", "August",
+                "September", "October", "November", "December"
+            ];
+
+            document.getElementById('month-name').innerText =
+                `${monthNames[month]} ${year}`;
+
             const grid = document.getElementById('calendar-grid');
+
             grid.innerHTML = '';
+
+            const dayHeaders = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+            dayHeaders.forEach(day => {
+                const header = document.createElement('div');
+                header.innerText = day;
+                header.classList.add('grid-header');
+                grid.appendChild(header);
+            });
+
             const firstDay = new Date(year, month, 1).getDay();
             const daysInMonth = new Date(year, month + 1, 0).getDate();
-            for (let i = 0; i < firstDay; i++) grid.appendChild(document.createElement('div'));
+
+            for (let i = 0; i < firstDay; i++) {
+                grid.appendChild(document.createElement('div'));
+            }
+
             for (let d = 1; d <= daysInMonth; d++) {
                 const div = document.createElement('div');
+
                 div.innerText = d;
                 div.classList.add('calendar-day');
-                if (d === now.getDate()) div.classList.add('today');
+
+                if (d === now.getDate()) {
+                    div.classList.add('today');
+                }
+
                 grid.appendChild(div);
             }
         }
+
         buildCalendar();
         updateMirrorData();
         setInterval(updateMirrorData, 600000);
+
+        window.addEventListener("load", () => {
+            const welcomeScreen = document.getElementById("welcome-screen");
+
+            setTimeout(() => {
+                if (welcomeScreen) {
+                    welcomeScreen.classList.add("hide-welcome");
+                }
+            }, 4000);
+        });
     </script>
 </body>
+
 </html>
