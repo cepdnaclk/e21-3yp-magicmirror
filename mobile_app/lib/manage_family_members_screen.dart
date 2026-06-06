@@ -72,13 +72,53 @@ class _ManageFamilyMembersScreenState extends State<ManageFamilyMembersScreen> {
 
     setState(() => _isLoading = true);
     try {
+      // 1. Determine S3 paths to delete
+      List<String> pathsToDelete = [];
+      if (member.imagePaths != null && member.imagePaths!.isNotEmpty) {
+        pathsToDelete = member.imagePaths!.whereType<String>().toList();
+      } else {
+        // Fallback: Reconstruct paths using the family member's email/details and current user email prefix
+        try {
+          final attributes = await Amplify.Auth.fetchUserAttributes();
+          final emailAttr = attributes.firstWhere((attr) => attr.userAttributeKey == AuthUserAttributeKey.email);
+          final mainUserEmail = emailAttr.value.split('@')[0].trim().toLowerCase();
+          final cleanMemberName = member.name.split('@')[0].trim().replaceAll(' ', '_').toLowerCase();
+          
+          pathsToDelete = [
+            'public/face_entries/${mainUserEmail}_${cleanMemberName}_front.jpg',
+            'public/face_entries/${mainUserEmail}_${cleanMemberName}_left.jpg',
+            'public/face_entries/${mainUserEmail}_${cleanMemberName}_right.jpg',
+          ];
+        } catch (authErr) {
+          safePrint('Failed to construct fallback S3 paths: $authErr');
+        }
+      }
+
+      // 2. Delete S3 files first
+      for (final path in pathsToDelete) {
+        if (path.isNotEmpty) {
+          try {
+            safePrint('Attempting to delete from S3: $path');
+            final result = await Amplify.Storage.remove(
+              path: StoragePath.fromString(path),
+            ).result;
+            safePrint('Successfully deleted photo from S3: ${result.removedItem.path}');
+          } catch (storageError) {
+            safePrint('Error deleting photo from S3 ($path): $storageError');
+          }
+        }
+      }
+
+      // 3. Delete member from DynamoDB
       final request = ModelMutations.delete(
         member,
         authorizationMode: APIAuthorizationType.userPools,
       );
-      await Amplify.API.mutate(request: request).response;
-      
-      // Optionally delete images from S3 here if needed
+      final response = await Amplify.API.mutate(request: request).response;
+
+      if (response.hasErrors) {
+        throw Exception(response.errors.first.message);
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("✅ Member Deleted!"), backgroundColor: Colors.green));
