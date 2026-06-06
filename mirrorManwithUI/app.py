@@ -9,14 +9,14 @@ import threading
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+# Import config first (triggers load_dotenv and env setup)
+from config import settings
+
 from services.weather_service import get_current_weather
 
 # ================= WINDOWS FIX =================
 if sys.platform.startswith("win"):
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-
-# Import config (triggers load_dotenv and env setup)
-from config import settings
 
 # Import components
 from controllers.websocket_manager import manager
@@ -39,12 +39,30 @@ bot = SinhalaBot()
 # ================= REGISTER ROUTES =================
 register_routes(app, bot, manager)
 
+# ================= PERIODIC FACE INDEXING =================
+async def run_periodic_face_indexing():
+    """Runs face indexing periodically (every 10 minutes) in a non-blocking background thread."""
+    from services.face_indexer import dynamic_indexing
+    # Wait 10 seconds after startup before the first run to avoid congestion
+    await asyncio.sleep(10)
+    while True:
+        try:
+            print("🔄 [Face Indexer] Running periodic face indexing...", flush=True)
+            await asyncio.to_thread(dynamic_indexing)
+            print("✅ [Face Indexer] Periodic face indexing completed.", flush=True)
+        except Exception as e:
+            print(f"⚠️ [Face Indexer] Error in periodic indexing: {e}", flush=True)
+        # Sleep for 10 minutes (600 seconds)
+        await asyncio.sleep(600)
+
+
 # ================= STARTUP EVENT =================
 @app.on_event("startup")
 async def startup_event():
     # Start both the Bot and the AWS Watcher alongside the Web Server!
     asyncio.create_task(bot.run())
     asyncio.create_task(check_s3_inbox())
+    asyncio.create_task(run_periodic_face_indexing())
 
 @app.on_event("shutdown")
 async def shutdown_event():

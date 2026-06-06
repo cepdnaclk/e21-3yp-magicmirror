@@ -3,7 +3,6 @@
 
 notifications = []
 
-priority_schedule = [
-    {"time": "10:00 AM", "name": "Project Presentation", "date": "APR 24"},
-    {"time": "02:00 PM", "name": "Lab Session", "date": "APR 24"}
-]
+# Reminders are now populated in real-time from DynamoDB via s3_watcher.
+# This list starts empty; the mirror UI is updated every 60 s automatically.
+priority_schedule = []

@@ -108,19 +108,126 @@
         function addScheduleItem(item) {
             const list = document.getElementById('calendar-list');
 
-            const time = item.time || '--:--';
-            const name = item.name || 'Untitled';
-            const date = item.date || 'Today';
+            const time        = item.time        || '--:--';
+            const name        = item.reason      || item.name || 'Untitled';
+            const date        = item.date        || 'Today';
+            const expiryEpoch = item.expiry_epoch || '';
+            const itemId      = item.id ? `reminder-${item.id}` : `reminder-${Date.now()}`;
 
-            const html = `<li>
-                        <span class="time-tag">${time}</span> ${name}
-                        <span class="schedule-meta">${date}</span>
-                    </li>`;
-
-            list.insertAdjacentHTML('afterbegin', html);
+            const li = document.createElement('li');
+            li.id   = itemId;
+            if (expiryEpoch) li.dataset.expiry = expiryEpoch;
+            li.innerHTML = `<span class="time-tag">${time}</span> ${name}
+                            <span class="schedule-meta">${date}</span>`;
+            list.appendChild(li);
         }
 
+        // Rebuild the entire reminder/schedule box from a live DynamoDB list
+        function syncReminderList(items) {
+            const list = document.getElementById('calendar-list');
+            list.innerHTML = '';
+            if (!items || items.length === 0) {
+                list.innerHTML = '<li style="color:var(--muted-white);font-size:15px;">No upcoming reminders</li>';
+                return;
+            }
+            items.forEach(item => addScheduleItem(item));
+        }
+
+        // Every 60 s: remove any list items whose scheduled time has passed
+        setInterval(() => {
+            const now = Date.now();
+            document.querySelectorAll('#calendar-list li[data-expiry]').forEach(li => {
+                const expiry = parseInt(li.dataset.expiry, 10);
+                if (expiry && now > expiry) {
+                    li.style.transition = 'opacity 0.6s ease';
+                    li.style.opacity   = '0';
+                    setTimeout(() => {
+                        li.remove();
+                        const list = document.getElementById('calendar-list');
+                        if (list && list.children.length === 0) {
+                            list.innerHTML = '<li style="color:var(--muted-white);font-size:15px;">No upcoming reminders</li>';
+                        }
+                    }, 650);
+                }
+            });
+        }, 60000);
+
         let mirrorActive = false;
+        let userIsPresent = false;
+        let activeMessage = null;
+        let activeMsgState = null; // 'FULLSCREEN' or 'NOTIFICATION_BOX'
+        let activeMsgTimer = null;
+        let userHasBeenPresentWithBoxMsg = false;
+
+        function clearActiveMsgTimer() {
+            if (activeMsgTimer) {
+                clearTimeout(activeMsgTimer);
+                activeMsgTimer = null;
+            }
+        }
+
+        function displayFullscreen(text, durationSeconds) {
+            const popup = document.getElementById('big-popup');
+            const wrapper = document.getElementById('mirror-wrapper');
+            
+            // Remove blackout so the fullscreen popup is visible
+            wrapper.classList.remove('black-out');
+            
+            popup.innerHTML = `
+                <div class="cyan-glow-text">Message</div>
+                <div id="popup-text">${text}</div>
+                <div class="progress-container">
+                    <div class="progress-bar" style="animation: shrink ${durationSeconds}s linear forwards;"></div>
+                </div>
+            `;
+            popup.classList.add('show');
+        }
+
+        function hideFullscreen() {
+            const popup = document.getElementById('big-popup');
+            popup.classList.remove('show');
+        }
+
+        function showNotificationInBox(text) {
+            const notifyBox = document.getElementById('notification-content');
+            const timestamp = new Date().toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false
+            });
+            
+            if (notifyBox.innerText.includes("No new messages")) {
+                notifyBox.innerHTML = "";
+            }
+            
+            notifyBox.innerHTML = ""; // Show only the current message
+            
+            const newEntry = document.createElement('div');
+            newEntry.className = 'history-item';
+            newEntry.id = 'active-box-msg';
+            newEntry.innerHTML = `<span style="color:var(--gold)">[${timestamp}]</span> ${text}`;
+            notifyBox.appendChild(newEntry);
+        }
+
+        function clearNotificationBox() {
+            const notifyBox = document.getElementById('notification-content');
+            notifyBox.innerHTML = '<p class="status-text">No new messages</p>';
+        }
+
+        function updateBlackoutState() {
+            const wrapper = document.getElementById('mirror-wrapper');
+            const v = document.getElementById('mirror-video');
+            if (userIsPresent) {
+                wrapper.classList.remove('black-out');
+            } else {
+                if (activeMsgState === 'FULLSCREEN') {
+                    wrapper.classList.remove('black-out');
+                } else {
+                    wrapper.classList.add('black-out');
+                    v.pause();
+                }
+            }
+        }
 
         socket.onmessage = (event) => {
             const v = document.getElementById('mirror-video');
@@ -197,118 +304,121 @@
             }
 
             if (payload && payload.type === 'presence') {
-                if (payload.value === 'present') {
-                    wrapper.classList.remove('black-out');
+                const isPresent = payload.value === 'present';
+                userIsPresent = isPresent;
+
+                if (isPresent) {
+                    if (activeMessage && activeMsgState === 'FULLSCREEN') {
+                        // Reset timer to 10 seconds since they just appeared
+                        clearActiveMsgTimer();
+                        displayFullscreen(activeMessage, 10);
+                        activeMsgTimer = setTimeout(() => {
+                            hideFullscreen();
+                            activeMessage = null;
+                            activeMsgState = null;
+                            updateBlackoutState();
+                        }, 10000);
+                    } else if (activeMessage && activeMsgState === 'NOTIFICATION_BOX') {
+                        userHasBeenPresentWithBoxMsg = true;
+                    }
                 } else {
-                    wrapper.classList.add('black-out');
-                    v.pause();
+                    if (activeMessage && activeMsgState === 'NOTIFICATION_BOX' && userHasBeenPresentWithBoxMsg) {
+                        clearNotificationBox();
+                        activeMessage = null;
+                        activeMsgState = null;
+                        userHasBeenPresentWithBoxMsg = false;
+                    }
                 }
 
+                updateBlackoutState();
                 return;
             }
 
-            if (payload && (payload.type === 'notification' || payload.type === 'reminder')) {
+            if (payload && payload.type === 'notification') {
                 const rawMsg = payload.message;
 
-                const timestamp = new Date().toLocaleTimeString([], {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    hour12: false
-                });
+                clearActiveMsgTimer();
+                hideFullscreen();
+                clearNotificationBox();
 
-                wrapper.classList.remove('black-out');
+                activeMessage = rawMsg;
+                activeMsgState = 'FULLSCREEN';
+                userHasBeenPresentWithBoxMsg = false;
 
-                popup.innerHTML = `
-                    <div class="cyan-glow-text">Message</div>
-                    <div id="popup-text">${rawMsg}</div>
-                    <div class="progress-container">
-                        <div class="progress-bar"></div>
-                    </div>
-                `;
+                if (userIsPresent) {
+                    displayFullscreen(rawMsg, 10);
+                    activeMsgTimer = setTimeout(() => {
+                        hideFullscreen();
+                        activeMessage = null;
+                        activeMsgState = null;
+                        updateBlackoutState();
+                    }, 10000);
+                } else {
+                    displayFullscreen(rawMsg, 1800); // 30 minutes
+                    activeMsgTimer = setTimeout(() => {
+                        hideFullscreen();
+                        activeMsgState = 'NOTIFICATION_BOX';
+                        showNotificationInBox(rawMsg);
+                        updateBlackoutState();
+                    }, 1800000); // 30 minutes
+                }
 
-                popup.classList.add('show');
+                updateBlackoutState();
+                return;
+            }
 
+            if (payload && payload.type === 'reminder') {
+                const rawMsg = payload.message;
+
+                displayFullscreen(rawMsg, 10);
                 setTimeout(() => {
-                    popup.classList.remove('show');
+                    hideFullscreen();
 
-                    if (payload.type === 'notification') {
-                        const msg = rawMsg;
+                    try {
+                        let namePart = "Untitled";
+                        let datePart = "Today";
+                        let timePart = "Now";
 
-                        const newEntry = document.createElement('div');
-                        newEntry.className = 'history-item';
+                        if (rawMsg.includes("👉")) {
+                            let parts = rawMsg.split("👉");
 
-                        const entryId = "msg-" + Date.now();
-                        newEntry.id = entryId;
+                            namePart = parts[1] ? parts[1].trim() : "Untitled";
 
-                        newEntry.innerHTML =
-                            `<span style="color:var(--gold)">[${timestamp}]</span> ${msg}`;
+                            let dateTimePart =
+                                parts[0].replace(/📅 |Upcoming: /gi, "").trim();
 
-                        if (notifyBox.innerText.includes("No new messages")) {
-                            notifyBox.innerHTML = "";
+                            let dateTimeSplit = dateTimePart.split(/ at /i);
+
+                            datePart = dateTimeSplit[0]
+                                ? dateTimeSplit[0].trim()
+                                : "Today";
+
+                            timePart = dateTimeSplit[1]
+                                ? dateTimeSplit[1].trim()
+                                : "Now";
+                        } else {
+                            namePart = rawMsg;
                         }
 
-                        notifyBox.insertBefore(newEntry, notifyBox.firstChild);
-
-                        setTimeout(() => {
-                            const itemToRemove = document.getElementById(entryId);
-
-                            if (itemToRemove) {
-                                itemToRemove.style.opacity = '0';
-
-                                setTimeout(() => {
-                                    itemToRemove.remove();
-
-                                    if (notifyBox.children.length === 0) {
-                                        notifyBox.innerHTML =
-                                            '<p class="status-text">No new messages</p>';
-                                    }
-                                }, 500);
-                            }
-                        }, 600000);
-                    }
-
-                    else if (payload.type === 'reminder') {
-                        try {
-                            let namePart = "Untitled";
-                            let datePart = "Today";
-                            let timePart = "Now";
-
-                            if (rawMsg.includes("👉")) {
-                                let parts = rawMsg.split("👉");
-
-                                namePart = parts[1] ? parts[1].trim() : "Untitled";
-
-                                let dateTimePart =
-                                    parts[0].replace(/📅 |Upcoming: /gi, "").trim();
-
-                                let dateTimeSplit = dateTimePart.split(/ at /i);
-
-                                datePart = dateTimeSplit[0]
-                                    ? dateTimeSplit[0].trim()
-                                    : "Today";
-
-                                timePart = dateTimeSplit[1]
-                                    ? dateTimeSplit[1].trim()
-                                    : "Now";
-                            } else {
-                                namePart = rawMsg;
-                            }
-
-                            addScheduleItem({
-                                time: timePart,
-                                name: namePart,
-                                date: datePart
-                            });
-                        } catch (e) {
-                            addScheduleItem({
-                                time: 'Now',
-                                name: rawMsg,
-                                date: 'Today'
-                            });
-                        }
+                        addScheduleItem({
+                            time: timePart,
+                            name: namePart,
+                            date: datePart
+                        });
+                    } catch (e) {
+                        addScheduleItem({
+                            time: 'Now',
+                            name: rawMsg,
+                            date: 'Today'
+                        });
                     }
                 }, 10000);
 
+            }
+
+            // ── DynamoDB live reminder list ─────────────────────────────
+            if (payload && payload.type === 'reminder_list') {
+                syncReminderList(payload.items);
                 return;
             }
         };

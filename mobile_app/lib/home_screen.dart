@@ -2,10 +2,11 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:amplify_flutter/amplify_flutter.dart'; 
+import 'package:flutter_animate/flutter_animate.dart';
 import 'database_service.dart';
 import 'slideshow_screen.dart';
-import 'add_family_member_screen.dart';
-import 'add_reminder_screen.dart'; 
+import 'manage_family_members_screen.dart';
+import 'manage_reminders_screen.dart'; 
 import 'login_screen.dart'; 
 
 class HomeScreen extends StatefulWidget {
@@ -86,7 +87,10 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor: _bgDark,
       extendBodyBehindAppBar: true, 
       appBar: AppBar(
-        title: Text("MAGIC MIRROR", style: GoogleFonts.orbitron(color: Colors.white, fontSize: 24, letterSpacing: 2, fontWeight: FontWeight.bold)),
+        title: Text("MAGIC MIRROR", 
+          style: GoogleFonts.orbitron(color: Colors.white, fontSize: 24, letterSpacing: 2, fontWeight: FontWeight.bold)
+        ).animate(onPlay: (controller) => controller.repeat(reverse: true))
+         .shimmer(duration: 2.seconds, color: _accentColor.withOpacity(0.5)), // Shimmer effect for title
         centerTitle: true,
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -96,17 +100,36 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Container(color: Colors.black.withOpacity(0.2)),
           ),
         ),
-        actions: [IconButton(icon: const Icon(Icons.logout, color: Colors.white), onPressed: _logout)],
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout, color: Colors.white), 
+            onPressed: _logout
+          ).animate().fade(delay: 500.ms).scale()
+        ],
       ),
       body: Stack(
         children: [
+          // Animated Background Gradient 1
           Positioned(
             top: -100, left: -100,
             child: Container(
               width: 400, height: 400,
               decoration: BoxDecoration(shape: BoxShape.circle, gradient: RadialGradient(colors: [_accentColor.withOpacity(0.15), Colors.transparent])),
-            ),
+            ).animate(onPlay: (controller) => controller.repeat(reverse: true))
+             .scaleXY(end: 1.2, duration: 4.seconds, curve: Curves.easeInOut)
+             .fadeIn(duration: 2.seconds),
           ),
+          // Animated Background Gradient 2
+          Positioned(
+            bottom: -50, right: -100,
+            child: Container(
+              width: 300, height: 300,
+              decoration: BoxDecoration(shape: BoxShape.circle, gradient: RadialGradient(colors: [Colors.cyan.withOpacity(0.1), Colors.transparent])),
+            ).animate(onPlay: (controller) => controller.repeat(reverse: true))
+             .scaleXY(end: 1.3, duration: 5.seconds, curve: Curves.easeInOut)
+             .fadeIn(duration: 2.seconds, delay: 1.seconds),
+          ),
+          
           SafeArea(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(24),
@@ -155,7 +178,10 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                         _isSendingMessage
                             ? const Padding(padding: EdgeInsets.all(12.0), child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFC4D300))))
-                            : IconButton(icon: Icon(Icons.send_rounded, color: _accentColor), onPressed: _sendPuppeteerMessage),
+                            : IconButton(
+                                icon: Icon(Icons.send_rounded, color: _accentColor), 
+                                onPressed: _sendPuppeteerMessage
+                              ).animate(target: _speakController.text.isNotEmpty ? 1 : 0).scaleXY(end: 1.1).shimmer(),
                       ],
                     ),
                   ),
@@ -172,11 +198,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(height: 20),
                   _fullWidthButton("MANAGE SLIDESHOW", Icons.photo_library, () => Navigator.push(context, MaterialPageRoute(builder: (context) => const SlideshowScreen()))),
                   const SizedBox(height: 20),
-                  _fullWidthButton("ADD FAMILY MEMBER", Icons.person_add, () => Navigator.push(context, MaterialPageRoute(builder: (context) => const AddFamilyMemberScreen()))),
+                  _fullWidthButton("FAMILY MEMBERS", Icons.group, () => Navigator.push(context, MaterialPageRoute(builder: (context) => const ManageFamilyMembersScreen()))),
                   const SizedBox(height: 20),
-                  _fullWidthButton("SCHEDULE REMINDER", Icons.edit_calendar, () => Navigator.push(context, MaterialPageRoute(builder: (context) => const AddReminderScreen()))),
+                  _fullWidthButton("SCHEDULED REMINDERS", Icons.event_note, () => Navigator.push(context, MaterialPageRoute(builder: (context) => const ManageRemindersScreen()))),
                   const SizedBox(height: 50),
-                ],
+                ].animate(interval: 100.ms).fade(duration: 500.ms).slideY(begin: 0.1, end: 0, curve: Curves.easeOutQuad),
               ),
             ),
           ),
@@ -193,28 +219,90 @@ class _HomeScreenState extends State<HomeScreen> {
         onPressed: onTap,
         icon: Icon(icon, color: Colors.black),
         label: Text(label, style: GoogleFonts.orbitron(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black)),
-        style: ElevatedButton.styleFrom(backgroundColor: _accentColor, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: _accentColor, 
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          elevation: 5,
+          shadowColor: _accentColor.withOpacity(0.5)
+        ),
       ),
-    );
+    ).animate(onPlay: (controller) => controller.repeat(reverse: true))
+     .boxShadow(
+       begin: BoxShadow(color: _accentColor.withOpacity(0.2), blurRadius: 5, spreadRadius: 0),
+       end: BoxShadow(color: _accentColor.withOpacity(0.6), blurRadius: 15, spreadRadius: 2),
+       duration: 2.seconds,
+     );
   }
 
   Widget _sectionTitle(String text) => Text(text, style: GoogleFonts.orbitron(color: Colors.white54, fontSize: 12, letterSpacing: 2, fontWeight: FontWeight.bold));
 
   Widget _glassContainer({required Widget child, EdgeInsetsGeometry? padding}) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(24),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-        child: Container(padding: padding ?? const EdgeInsets.all(20), decoration: BoxDecoration(color: _glassWhite, borderRadius: BorderRadius.circular(24), border: Border.all(color: _glassBorder)), child: child),
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 10, spreadRadius: 2)
+        ]
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Container(
+            padding: padding ?? const EdgeInsets.all(20), 
+            decoration: BoxDecoration(
+              color: _glassWhite, 
+              borderRadius: BorderRadius.circular(24), 
+              border: Border.all(color: _glassBorder)
+            ), 
+            child: child
+          ),
+        ),
       ),
     );
   }
 
   Widget _glassButton(String label, IconData icon, Color color, VoidCallback onTap) {
-    return GestureDetector(onTap: onTap, child: _glassContainer(padding: const EdgeInsets.symmetric(vertical: 20), child: Column(children: [Icon(icon, color: color, size: 28), const SizedBox(height: 8), Text(label, style: GoogleFonts.orbitron(color: color, fontSize: 12, fontWeight: FontWeight.bold))])));
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(24),
+        splashColor: color.withOpacity(0.3),
+        highlightColor: color.withOpacity(0.1),
+        child: _glassContainer(
+          padding: const EdgeInsets.symmetric(vertical: 20), 
+          child: Column(
+            children: [
+              Icon(icon, color: color, size: 28)
+                .animate(onPlay: (controller) => controller.repeat())
+                .shimmer(duration: 2.seconds, delay: 1.seconds, color: Colors.white), 
+              const SizedBox(height: 8), 
+              Text(label, style: GoogleFonts.orbitron(color: color, fontSize: 12, fontWeight: FontWeight.bold))
+            ]
+          )
+        )
+      ),
+    );
   }
 
   Widget _glassSensorCard(IconData icon, String value, String label, Color color) {
-    return Expanded(child: _glassContainer(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle), child: Icon(icon, color: color, size: 24)), const SizedBox(height: 16), Text(value, style: GoogleFonts.outfit(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w600)), Text(label, style: GoogleFonts.outfit(color: Colors.white54, fontSize: 12, letterSpacing: 1))])));
+    return Expanded(
+      child: _glassContainer(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start, 
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10), 
+              decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle), 
+              child: Icon(icon, color: color, size: 24)
+            ), 
+            const SizedBox(height: 16), 
+            Text(value, style: GoogleFonts.outfit(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w600)), 
+            Text(label, style: GoogleFonts.outfit(color: Colors.white54, fontSize: 12, letterSpacing: 1))
+          ]
+        )
+      )
+    );
   }
 }

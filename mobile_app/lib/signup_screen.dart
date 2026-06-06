@@ -3,7 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:amplify_flutter/amplify_flutter.dart';
-import 'email_confirmation_screen.dart'; // අලුත් Screen එක අනිවාර්යයෙන්ම import කරන්න
+import 'package:flutter_animate/flutter_animate.dart';
+import 'email_confirmation_screen.dart'; 
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -36,7 +37,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final Color _glassWhite = Colors.white.withOpacity(0.05);
   final Color _glassBorder = Colors.white.withOpacity(0.1);
 
-  // --- 1. GUIDED PICK IMAGE ---
   Future<void> _pickImage() async {
     if (_currentStepIndex >= _steps.length && _faceAngles.length == 3) {
       setState(() {
@@ -64,7 +64,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
     }
   }
 
-  // --- 2. SECURE REGISTRATION & NAVIGATION ---
   Future<void> _registerUser() async {
     if (_faceAngles.length < 3) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("⚠️ Please provide all 3 face angles!")));
@@ -85,7 +84,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
       final String userEmail = _emailController.text.trim();
       final String emailClean = userEmail.replaceAll('@gmail.com', '').replaceAll('.', '_');
 
-      // 1. Create AWS Cognito User (Status: UNCONFIRMED)
       await Amplify.Auth.signUp(
         username: userEmail,
         password: _passController.text,
@@ -97,7 +95,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
         ),
       );
 
-      // 2. Upload 3 Images to S3
       for (String angle in _faceAngles.keys) {
         final String pathName = 'public/face_entries/${emailClean}_Owner_Self_$angle.jpg';
         
@@ -112,7 +109,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
           const SnackBar(content: Text("✅ Account Created! Sending Verification Code..."), backgroundColor: Colors.green)
         );
 
-        // --- වැදගත්: මෙතැනදී කෙලින්ම OTP Screen එකට යනවා ---
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -145,7 +141,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 shape: BoxShape.circle,
                 gradient: RadialGradient(colors: [_accentColor.withOpacity(0.15), Colors.transparent]),
               ),
-            ),
+            ).animate(onPlay: (controller) => controller.repeat(reverse: true))
+             .scaleXY(end: 1.2, duration: 4.seconds, curve: Curves.easeInOut)
+             .fadeIn(duration: 2.seconds),
           ),
 
           SafeArea(
@@ -158,7 +156,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     icon: const Icon(Icons.arrow_back, color: Colors.white),
                     onPressed: () => Navigator.pop(context),
                   ),
-                  Text("Biometric Profile", style: GoogleFonts.orbitron(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold)),
+                  Text("Biometric Profile", style: GoogleFonts.orbitron(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold))
+                    .animate(onPlay: (controller) => controller.repeat(reverse: true))
+                    .shimmer(duration: 2.seconds, color: _accentColor.withOpacity(0.5)),
                   Text("Register your face for ReflectStudio", style: GoogleFonts.outfit(color: Colors.white54, fontSize: 14)),
 
                   const SizedBox(height: 30),
@@ -183,10 +183,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             child: _faceAngles[_steps[_currentStepIndex == 3 ? 0 : _currentStepIndex]] != null
                                 ? ClipOval(child: Image.memory(_faceAngles[_steps[_currentStepIndex == 3 ? 0 : _currentStepIndex]]!, fit: BoxFit.cover))
                                 : Icon(Icons.camera_front_rounded, color: _accentColor, size: 45),
-                          ),
+                          ).animate(target: _faceAngles.length == 3 ? 1 : 0).shimmer(duration: 1.seconds, color: Colors.white),
                         ),
                         const SizedBox(height: 12),
-                        Text(instruction.toUpperCase(), style: GoogleFonts.orbitron(color: _accentColor, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1)),
+                        Text(instruction.toUpperCase(), style: GoogleFonts.orbitron(color: _accentColor, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1))
+                          .animate(onPlay: (controller) => controller.repeat(reverse: true)).fadeIn().fadeOut(duration: 1.seconds),
                         
                         const SizedBox(height: 10),
                         Row(
@@ -239,8 +240,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
                         : Text("CREATE PROFILE", style: GoogleFonts.orbitron(fontSize: 16, fontWeight: FontWeight.bold)),
                     ),
-                  ),
-                ],
+                  ).animate(onPlay: (controller) => controller.repeat(reverse: true))
+                   .boxShadow(
+                     begin: BoxShadow(color: _accentColor.withOpacity(0.2), blurRadius: 5, spreadRadius: 0),
+                     end: BoxShadow(color: _accentColor.withOpacity(0.6), blurRadius: 15, spreadRadius: 2),
+                     duration: 2.seconds,
+                   ),
+                ].animate(interval: 100.ms).fade(duration: 500.ms).slideY(begin: 0.1, end: 0, curve: Curves.easeOutQuad),
               ),
             ),
           ),

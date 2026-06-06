@@ -3,133 +3,265 @@ import json
 import time
 import os
 import sys
+import threading
 from datetime import datetime
+
 try:
     from picamera2 import Picamera2
 except ImportError:
     Picamera2 = None
-    print("Warning: picamera2 not found. Running in mock mode.")
 
-from config.settings import AWS_REGION, BUCKET_NAME, COLLECTION_ID
+from config.settings import BUCKET_NAME, COLLECTION_ID
 from config.aws_config import get_rekognition_client, get_s3_client
 
-# --- AWS CONFIG ---
-# Initialize AWS Clients
-print("--- Initializing AWS Services ---", flush=True)
-rekognition = get_rekognition_client()
-s3 = get_s3_client()
-print("? AWS Services Connected.", flush=True)
+# --- Module-level AWS Clients (None until first use) ---
+rekognition = None
+s3 = None
 
-def send_alert_to_app(person_name, emotion):
-    """Uploads an alert JSON to S3 for the mobile app"""
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    alert_data = {
-        "user_id": person_name,
-        "emotion": emotion,
-        "time": timestamp,
-        "message": f"Attention! {person_name} is currently feeling {emotion}.",
-        "status": "unread"
+
+def _get_rekognition():
+    """Return the Rekognition client, initialising it lazily on first call."""
+    global rekognition
+    if rekognition is None:
+        rekognition = get_rekognition_client()
+    return rekognition
+
+
+def _get_s3():
+    """Return the S3 client, initialising it lazily on first call."""
+    global s3
+    if s3 is None:
+        s3 = get_s3_client()
+    return s3
+
+
+def get_family_member_owners(detected_person):
+    """Query DynamoDB to find all owners who have this detected_person in their FamilyMember list."""
+    import boto3
+    from config.settings import AWS_REGION
+
+    clean_detected = detected_person.replace('_Owner_Self', '').strip().lower()
+
+    # Get credentials/config values
+    aws_keys = {
+        'aws_access_key_id': os.getenv("AWS_ACCESS_KEY_ID") or None,
+        'aws_secret_access_key': os.getenv("AWS_SECRET_ACCESS_KEY") or None,
+        'region_name': AWS_REGION or os.getenv("AWS_REGION") or os.getenv("AWS_DEFAULT_REGION")
     }
 
-    file_name = f"public/alerts/alert_{person_name}_{timestamp}.json"
-
+    owners = set()
     try:
-        s3.put_object(
-            Bucket=BUCKET_NAME,
-            Key=file_name,
-            Body=json.dumps(alert_data),
-            ContentType="application/json"
-        )
-        print(f"?? [ALERT SENT] S3 Path: {file_name}", flush=True)
+        # Initialize client with available keys
+        dynamodb = boto3.client('dynamodb', **{k: v for k, v in aws_keys.items() if v is not None})
+
+        # 1. Dynamically locate the FamilyMember table
+        table_name = None
+        tables = dynamodb.list_tables().get("TableNames", [])
+        for t in tables:
+            if t.startswith("FamilyMember-"):
+                table_name = t
+                break
+
+        if not table_name:
+            print("⚠️  DynamoDB FamilyMember table not found in AWS account.", flush=True)
+            return []
+
+        # 2. Scan items and filter for matches
+        paginator = dynamodb.get_paginator('scan')
+        for page in paginator.paginate(TableName=table_name):
+            for item in page.get('Items', []):
+                db_name = item.get('name', {}).get('S', '').strip().lower()
+                db_owner = item.get('owner', {}).get('S', '').strip()
+
+                if not db_owner:
+                    continue
+
+                # Check if detected person matches the DB family member name
+                # E.g. db_name is "sithu@gmail.com" -> clean_db_name is "sithu"
+                # detected_person is "sithu_Owner_Self" or "sithu" -> clean_detected is "sithu"
+                clean_db_name = db_name.split('@')[0].replace('.', '_').replace('-', '_').strip().lower()
+                clean_detected_norm = clean_detected.replace('.', '_').replace('-', '_').strip().lower()
+
+                if clean_db_name == clean_detected_norm or clean_detected_norm in clean_db_name or clean_db_name in clean_detected_norm:
+                    owners.add(db_owner)
+
     except Exception as e:
-        print(f"? [ALERT ERROR] S3 Upload failed: {e}", flush=True)
+        print(f"⚠️  DynamoDB query failed: {e}", flush=True)
 
-def run_vision():
-    # Initialize PiCamera2
-    print("--- Starting PiCamera2 Hardware ---", flush=True)
-    if Picamera2 is None:
-        print("??? ReflectStudio Vision Engine (MOCK MODE - No Camera)...", flush=True)
+    return list(owners)
+
+
+def send_alert_to_app(person_name, emotion):
+    """Uploads an Alert JSON to the S3 bucket inside each matching family member's folder."""
+    s3_client = _get_s3()
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    # 1. Find all owners who registered this person as a family member
+    owners = get_family_member_owners(person_name)
+
+    # 2. Fallback to writing directly to the person's own folder if no owners found
+    if not owners:
+        owners = [person_name]
+
+    for owner in owners:
+        # Strip any ownership/email suffix to get a clean S3 user ID prefix
+        clean_user_id = owner.split('@')[0].replace('_Owner_Self', '').strip().lower()
+
+        alert_data = {
+            "user_id": clean_user_id,
+            "emotion": emotion,
+            "time": timestamp,
+            "message": f"Attention! {person_name.replace('_Owner_Self', '')} is currently feeling {emotion}.",
+            "status": "unread"
+        }
+
+        # Targeted upload for each owner
+        file_name = f"public/alerts/{clean_user_id}/alert_{timestamp}.json"
+
         try:
-            while True:
-                time.sleep(10) # Just idle since there's no camera
-        except KeyboardInterrupt:
-            print("\n--- Shutting down ReflectStudio ---", flush=True)
-            sys.exit()
+            s3_client.put_object(
+                Bucket=BUCKET_NAME,
+                Key=file_name,
+                Body=json.dumps(alert_data),
+                ContentType='application/json'
+            )
+            print(f"📡 [ALERT SENT] S3 Path: {file_name}", flush=True)
+        except Exception as e:
+            print(f"❌ [ALERT ERROR] S3 Upload failed to {file_name}: {e}", flush=True)
 
+
+def process_image(img_bytes):
+    """Handles blocking AWS Rekognition calls in a background thread."""
+    rek = _get_rekognition()
+    try:
+        # 1. Detect face emotions
+        face_detail = rek.detect_faces(
+            Image={'Bytes': img_bytes},
+            Attributes=['EMOTIONS']
+        )
+
+        if face_detail['FaceDetails']:
+            emotions = face_detail['FaceDetails'][0]['Emotions']
+            primary_emotion_data = max(emotions, key=lambda x: x['Confidence'])
+            primary_emotion = primary_emotion_data['Type']
+            confidence = primary_emotion_data['Confidence']
+
+            # 2. Identify the person via face search
+            search_res = rek.search_faces_by_image(
+                CollectionId=COLLECTION_ID,
+                Image={'Bytes': img_bytes},
+                MaxFaces=1,
+                FaceMatchThreshold=85
+            )
+
+            if search_res['FaceMatches']:
+                name = search_res['FaceMatches'][0]['Face']['ExternalImageId']
+                print(f"👤 [DETECTED] {name} | 🎭 [EMOTION] {primary_emotion} ({confidence:.1f}%)", flush=True)
+
+                # 3. Alert only on negative emotions
+                if primary_emotion in ["SAD", "ANGRY", "FEAR"]:
+                    send_alert_to_app(name, primary_emotion)
+            else:
+                print(f"❓ [UNKNOWN] Face found but not identified | Emotion: {primary_emotion}", flush=True)
+
+        else:
+            print("--- Scanning... (No faces found) ---", flush=True)
+
+    except Exception as e:
+        print(f"⚠️ [ENGINE ERROR] Rekognition error: {e}", flush=True)
+
+
+def _run_with_picamera():
+    """Camera loop using Picamera2 (Raspberry Pi)."""
     picam2 = Picamera2()
-
-    # Optimized configuration for fast face detection
     config = picam2.create_preview_configuration(
         main={"size": (640, 480), "format": "RGB888"}
     )
     picam2.configure(config)
     picam2.start()
+    print("👁️ ReflectStudio Vision Engine LIVE (PiCam2 Mode)...", flush=True)
 
-    print("??? ReflectStudio Vision Engine LIVE (PiCam2 Mode)...", flush=True)
-
+    last_process_time = time.time()
     try:
         while True:
-            # Capture the freshest frame directly as an array
             frame = picam2.capture_array()
-
-            # Picamera2 gives RGB, OpenCV needs BGR for encoding
-            frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-
-            # Encode to JPG for Rekognition
-            success, buffer = cv2.imencode(".jpg", frame_bgr)
-            if not success:
-                print("?? [FRAME ERROR] Failed to encode frame. Retrying...", flush=True)
-                continue
-
-            img_bytes = buffer.tobytes()
-
-            try:
-                # 1. Detect Emotions
-                face_detail = rekognition.detect_faces(
-                    Image={"Bytes": img_bytes},
-                    Attributes=["EMOTIONS"]
-                )
-
-                if face_detail["FaceDetails"]:
-                    # Get the most confident emotion
-                    emotions = face_detail["FaceDetails"][0]["Emotions"]
-                    primary_emotion_data = max(emotions, key=lambda x: x["Confidence"])
-                    primary_emotion = primary_emotion_data["Type"]
-                    confidence = primary_emotion_data["Confidence"]
-
-                    # 2. Identify Person
-                    search_res = rekognition.search_faces_by_image(
-                        CollectionId=COLLECTION_ID,
-                        Image={"Bytes": img_bytes},
-                        MaxFaces=1,
-                        FaceMatchThreshold=85
-                    )
-
-                    if search_res["FaceMatches"]:
-                        name = search_res["FaceMatches"][0]["Face"]["ExternalImageId"]
-                        print(f"?? [DETECTED] {name} | ?? [EMOTION] {primary_emotion} ({confidence:.1f}%)", flush=True)
-
-                        # 3. Alert Logic (Only negative emotions)
-                        if primary_emotion in ["SAD", "ANGRY", "FEAR"]:
-                            send_alert_to_app(name, primary_emotion)
-                    else:
-                        print(f"? [UNKNOWN] Face found but not identified | Emotion: {primary_emotion}", flush=True)
-
-                else:
-                    print("--- Scanning... (No faces found) ---", flush=True)
-
-            except Exception as e:
-                print(f"?? [ENGINE ERROR] Rekognition error: {e}", flush=True)
-
-            # Wait 10 seconds to save costs.
-            # Note: If accuracy is still low, try reducing this to 5 seconds.
-            time.sleep(10)
-
+            current_time = time.time()
+            if current_time - last_process_time >= 10:
+                last_process_time = current_time
+                frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+                _, buffer = cv2.imencode('.jpg', frame_bgr, [cv2.IMWRITE_JPEG_QUALITY, 80])
+                img_bytes = buffer.tobytes()
+                threading.Thread(target=process_image, args=(img_bytes,), daemon=True).start()
     except KeyboardInterrupt:
-        print("\n--- Shutting down ReflectStudio ---", flush=True)
+        print("\n--- Shutting down ReflectStudio (PiCam2) ---", flush=True)
     finally:
         picam2.stop()
-        sys.exit()
+
+
+def _run_with_opencv():
+    """Camera loop using OpenCV VideoCapture (PC / USB webcam fallback)."""
+    cap = cv2.VideoCapture(0)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+    cap.set(cv2.CAP_PROP_FPS, 10)
+    cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+
+    if not cap.isOpened():
+        return False
+
+    print("👁️ ReflectStudio Vision Engine LIVE (OpenCV / Webcam Mode)...", flush=True)
+
+    last_process_time = time.time()
+    try:
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                break
+            current_time = time.time()
+            if current_time - last_process_time >= 10:
+                last_process_time = current_time
+                _, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
+                img_bytes = buffer.tobytes()
+                threading.Thread(target=process_image, args=(img_bytes,), daemon=True).start()
+    except KeyboardInterrupt:
+        print("\n--- Shutting down ReflectStudio (OpenCV) ---", flush=True)
+    finally:
+        cap.release()
+
+    return True
+
+
+def _run_mock():
+    """Mock mode — no camera available. Idle and keep the process alive."""
+    print("⚠️  ReflectStudio Vision Engine (MOCK MODE — No Camera)...", flush=True)
+    try:
+        while True:
+            time.sleep(10)
+    except KeyboardInterrupt:
+        print("\n--- Shutting down ReflectStudio (Mock) ---", flush=True)
+
+
+def run_vision():
+    """Main entry-point. Tries Picamera2 → OpenCV → Mock in priority order."""
+    print("--- Starting ReflectStudio Vision Engine ---", flush=True)
+
+    if Picamera2 is not None:
+        try:
+            _run_with_picamera()
+            sys.exit(0)
+        except Exception as e:
+            print(f"⚠️  Picamera2 failed ({e}). Falling back to OpenCV...", flush=True)
+
+    try:
+        if _run_with_opencv():
+            sys.exit(0)
+        print("⚠️  No camera found via OpenCV. Running in mock mode.", flush=True)
+    except Exception as e:
+        print(f"⚠️  OpenCV failed ({e}). Running in mock mode.", flush=True)
+
+    _run_mock()
+    sys.exit(0)
+
 
 if __name__ == "__main__":
     run_vision()

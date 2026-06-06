@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:amplify_flutter/amplify_flutter.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'home_screen.dart';
 import 'signup_screen.dart';
 
@@ -23,14 +24,12 @@ class _LoginScreenState extends State<LoginScreen> {
   
   bool _isLoading = false;
 
-  // --- FIX: Logic එක මෙතැනින් වෙනස් කළා ---
   Future<void> _login() async {
     if (_userController.text.isEmpty || _passController.text.isEmpty) return;
 
     setState(() => _isLoading = true);
 
     try {
-      // 1. කලින්ම check කරනවා දැනටමත් valid session එකක් තියෙනවාද කියලා
       final session = await Amplify.Auth.fetchAuthSession();
       if (session.isSignedIn) {
         if (mounted) {
@@ -39,10 +38,9 @@ class _LoginScreenState extends State<LoginScreen> {
             MaterialPageRoute(builder: (context) => const HomeScreen()),
           );
         }
-        return; // දැනටමත් ලොග් වෙලා නම් මෙතනින් නවත්වන්න
+        return; 
       }
 
-      // 2. ලොග් වෙලා නැත්නම් විතරක් Authenticate කරන්න
       final SignInResult res = await Amplify.Auth.signIn(
         username: _userController.text.trim(),
         password: _passController.text,
@@ -57,7 +55,6 @@ class _LoginScreenState extends State<LoginScreen> {
          if(mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please verify your email code first!")));
       }
     } on AuthException catch (e) {
-      // 3. දැනටමත් ලොග් වෙලා ඉද්දි ආයෙත් Sign in call වුණොත් එන error එක handle කිරීම
       if (e.message.contains("already signed in")) {
         if (mounted) {
           Navigator.pushReplacement(
@@ -83,18 +80,25 @@ class _LoginScreenState extends State<LoginScreen> {
       backgroundColor: _bgDark,
       body: Stack(
         children: [
-          // Background Glow
+          // Animated Background Gradient 1
           Positioned(
             top: -100, right: -100,
             child: Container(
               width: 300, height: 300,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [_accentColor.withOpacity(0.2), Colors.transparent],
-                ),
-              ),
-            ),
+              decoration: BoxDecoration(shape: BoxShape.circle, gradient: RadialGradient(colors: [_accentColor.withOpacity(0.15), Colors.transparent])),
+            ).animate(onPlay: (controller) => controller.repeat(reverse: true))
+             .scaleXY(end: 1.2, duration: 4.seconds, curve: Curves.easeInOut)
+             .fadeIn(duration: 2.seconds),
+          ),
+          // Animated Background Gradient 2
+          Positioned(
+            bottom: -50, left: -100,
+            child: Container(
+              width: 300, height: 300,
+              decoration: BoxDecoration(shape: BoxShape.circle, gradient: RadialGradient(colors: [Colors.cyan.withOpacity(0.1), Colors.transparent])),
+            ).animate(onPlay: (controller) => controller.repeat(reverse: true))
+             .scaleXY(end: 1.3, duration: 5.seconds, curve: Curves.easeInOut)
+             .fadeIn(duration: 2.seconds, delay: 1.seconds),
           ),
           
           Center(
@@ -108,17 +112,22 @@ class _LoginScreenState extends State<LoginScreen> {
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: _glassWhite,
+                      boxShadow: [BoxShadow(color: _accentColor.withOpacity(0.2), blurRadius: 20)],
                     ),
-                    child: Image.asset(
-                       'assets/images/head_logo.png',
-                       fit: BoxFit.contain,
-                       errorBuilder: (context, error, stackTrace) => 
-                         Icon(Icons.lock_outline, color: _accentColor, size: 60),
+                    child: ClipOval(
+                      child: Image.asset(
+                         'assets/images/head_logo.png',
+                         fit: BoxFit.contain,
+                         errorBuilder: (context, error, stackTrace) => 
+                           Icon(Icons.lock_outline, color: _accentColor, size: 60),
+                      ),
                     ),
                   ),
 
                   const SizedBox(height: 20),
-                  Text("MAGIC MIRROR", style: GoogleFonts.orbitron(color: Colors.white, fontSize: 32, letterSpacing: 4, fontWeight: FontWeight.bold)),
+                  Text("MAGIC MIRROR", style: GoogleFonts.orbitron(color: Colors.white, fontSize: 32, letterSpacing: 4, fontWeight: FontWeight.bold))
+                    .animate(onPlay: (controller) => controller.repeat(reverse: true))
+                    .shimmer(duration: 2.seconds, color: _accentColor.withOpacity(0.5)),
                   Text("SECURE ACCESS", style: GoogleFonts.outfit(color: Colors.white54, fontSize: 12, letterSpacing: 2)),
                   
                   const SizedBox(height: 50),
@@ -140,13 +149,18 @@ class _LoginScreenState extends State<LoginScreen> {
                               foregroundColor: Colors.black,
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                               elevation: 10,
-                              shadowColor: _accentColor.withOpacity(0.4),
+                              shadowColor: _accentColor.withOpacity(0.5),
                             ),
                             child: _isLoading 
                              ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
                              : Text("ENTER SYSTEM", style: GoogleFonts.orbitron(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1)),
                           ),
-                        ),
+                        ).animate(onPlay: (controller) => controller.repeat(reverse: true))
+                         .boxShadow(
+                           begin: BoxShadow(color: _accentColor.withOpacity(0.2), blurRadius: 5, spreadRadius: 0),
+                           end: BoxShadow(color: _accentColor.withOpacity(0.6), blurRadius: 15, spreadRadius: 2),
+                           duration: 2.seconds,
+                         ),
                       ],
                     ),
                   ),
@@ -168,7 +182,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ],
                   ),
-                ],
+                ].animate(interval: 100.ms).fade(duration: 500.ms).slideY(begin: 0.1, end: 0, curve: Curves.easeOutQuad),
               ),
             ),
           ),
@@ -181,9 +195,10 @@ class _LoginScreenState extends State<LoginScreen> {
     return Container(
       padding: const EdgeInsets.all(30),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.08), 
+        color: Colors.black.withOpacity(0.3), 
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: Colors.white.withOpacity(0.1)),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.5), blurRadius: 20, spreadRadius: 5)],
       ),
       child: child,
     );
@@ -199,9 +214,9 @@ class _LoginScreenState extends State<LoginScreen> {
         hintText: hint,
         hintStyle: GoogleFonts.outfit(color: Colors.white24),
         filled: true,
-        fillColor: Colors.black.withOpacity(0.3),
+        fillColor: Colors.white.withOpacity(0.05),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide(color: _accentColor)),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide(color: _accentColor.withOpacity(0.5))),
       ),
     );
   }

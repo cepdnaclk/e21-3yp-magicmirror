@@ -6,7 +6,9 @@ from dotenv import load_dotenv
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ENV_PATH = os.path.join(BASE_DIR, "config", ".env")
 
-load_dotenv(ENV_PATH)
+load_dotenv()
+if os.path.exists(ENV_PATH):
+    load_dotenv(ENV_PATH)
 
 API_KEY = os.getenv("OPENWEATHER_API_KEY")
 LAT = os.getenv("LATITUDE")
