@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mirror Man OS - Elder Care</title>
+    <link rel="stylesheet" href="static/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@800&family=Noto+Sans+Sinhala:wght@700&display=swap"
+        rel="stylesheet">
+    <script src="https://unpkg.com/@dotlottie/player-component@latest/dist/dotlottie-player.mjs" type="module"></script>
+</head>
+
+<body>
+    <div id="mirror-ui">
+        <div class="header">
+            <div id="clock">00:00</div>
+            <div class="date-container">
+                <div id="date-en">Loading Date...</div>
+            </div>
+        </div>
+
+        <div id="assistant-zone" class="hidden">
+            <div id="avatar-container">
+                <dotlottie-player id="lottie-avatar" src="static/Idle.json" background="transparent" speed="1"
+                    style="width: 600px; height: 600px;" loop autoplay>
+                </dotlottie-player>
+            </div>
+            <h1 id="status-text">Ready...</h1>
+        </div>
+
+        <div class="footer">
+            <div class="card">
+                <span class="card-icon">🔔</span>
+                <div class="card-label">REMINDERS</div>
+                <div id="reminder-box" class="card-content">No special events</div>
+            </div>
+
+            <div class="card">
+                <span class="card-icon">☀️</span>
+                <div class="card-label">WEATHER</div>
+                <div id="weather-box" class="card-content">28°C - Clear sky</div>
+            </div>
+        </div>
+    </div>
+    <script src="static/script.js?v=2"></script>
+</body>
+
+</html>
