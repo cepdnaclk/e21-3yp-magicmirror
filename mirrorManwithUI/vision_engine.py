@@ -24,19 +24,33 @@ def send_alert_to_app(person_name, emotion):
     """Uploads an Alert JSON to the S3 bucket"""
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     
-    # Extract the owner prefix (everything before the first underscore)
-    owner_prefix = person_name.split('_')[0]
+    parts = person_name.split('_')
+    owner_prefix = parts[0]
     
-    # Strip the owner suffix to get a friendly display name for the alert body
-    friendly_name = person_name.replace('_Owner_Self', '')
-    if '_' in friendly_name and friendly_name.startswith(owner_prefix):
-        friendly_name = friendly_name[len(owner_prefix)+1:]
+    # Supported relationships in lowercase
+    known_relations = ['father', 'mother', 'grandfather', 'grandmother', 'guardian', 'son', 'daughter', 'brother', 'sister']
     
+    if len(parts) >= 3 and parts[1].lower() in known_relations:
+        relationship = parts[1].lower()
+        # Join everything after the relationship as name
+        friendly_name = " ".join(parts[2:]).replace('_', ' ').title()
+        display_subject = f"Your {relationship}"
+    else:
+        # Fallback for owner or old naming format
+        relationship = ""
+        friendly_name = person_name.replace(f"{owner_prefix}_", "").replace('_', ' ').title()
+        if 'Owner Self' in friendly_name or 'Owner' in friendly_name:
+            display_subject = "You"
+            friendly_name = "Self"
+        else:
+            display_subject = friendly_name
+            
     alert_data = {
         "user_id": friendly_name,
+        "relationship": relationship,
         "emotion": emotion,
         "time": timestamp,
-        "message": f"Attention! {friendly_name} is currently feeling {emotion}.",
+        "message": f"Attention! {display_subject} ({friendly_name}) is currently feeling {emotion}." if relationship else f"Attention! {display_subject} is currently feeling {emotion}.",
         "status": "unread"
     }
     

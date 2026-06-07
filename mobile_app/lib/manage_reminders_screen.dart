@@ -15,8 +15,12 @@ class ManageRemindersScreen extends StatefulWidget {
 }
 
 class _ManageRemindersScreenState extends State<ManageRemindersScreen> {
-  final Color _accentColor = const Color(0xFFC4D300);
-  final Color _bgDark = const Color(0xFF0A0B10);
+  final Color _accentCyan = const Color(0xFF00F0FF);
+  final Color _accentPurple = const Color(0xFF9E00FF);
+  final Color _accentPink = const Color(0xFFFF007A);
+  final Color _bgDark = const Color(0xFF07080E);
+  final Color _glassWhite = Colors.white.withOpacity(0.03);
+  final Color _glassBorder = Colors.white.withOpacity(0.06);
   
   List<Reminder> _reminders = [];
   bool _isLoading = true;
@@ -109,27 +113,27 @@ class _ManageRemindersScreenState extends State<ManageRemindersScreen> {
           "MANAGE REMINDERS", 
           style: GoogleFonts.orbitron(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 2)
         ).animate(onPlay: (controller) => controller.repeat(reverse: true))
-         .shimmer(duration: 2.seconds, color: _accentColor.withOpacity(0.5)),
+         .shimmer(duration: 3.seconds, color: _accentCyan.withOpacity(0.5)),
       ),
       body: Stack(
         children: [
           Positioned(
             top: -50, left: -100,
             child: Container(
-              width: 300, height: 300,
-              decoration: BoxDecoration(shape: BoxShape.circle, gradient: RadialGradient(colors: [Colors.cyan.withOpacity(0.1), Colors.transparent])),
+              width: 320, height: 320,
+              decoration: BoxDecoration(shape: BoxShape.circle, gradient: RadialGradient(colors: [_accentPurple.withOpacity(0.12), Colors.transparent])),
             ).animate(onPlay: (controller) => controller.repeat(reverse: true))
              .scaleXY(end: 1.3, duration: 5.seconds, curve: Curves.easeInOut),
           ),
           SafeArea(
             child: _isLoading 
-              ? Center(child: CircularProgressIndicator(color: _accentColor))
+              ? Center(child: CircularProgressIndicator(color: _accentCyan))
               : _reminders.isEmpty
                   ? Center(
                       child: Text(
                         "No reminders found.\nSchedule a new task!", 
                         textAlign: TextAlign.center,
-                        style: GoogleFonts.outfit(color: Colors.white54, fontSize: 16)
+                        style: GoogleFonts.outfit(color: Colors.white38, fontSize: 15)
                       ).animate().fade().slideY(),
                     )
                   : ListView.builder(
@@ -139,26 +143,42 @@ class _ManageRemindersScreenState extends State<ManageRemindersScreen> {
                         return _buildReminderCard(_reminders[index])
                           .animate()
                           .fade(delay: (index * 100).ms)
-                          .slideX(begin: 0.2);
+                          .slideX(begin: 0.15);
                       },
                     ),
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () async {
-          await Navigator.push(context, MaterialPageRoute(builder: (context) => const AddReminderScreen()));
-          _loadReminders(); // Reload after coming back
-        },
-        backgroundColor: _accentColor,
-        icon: const Icon(Icons.edit_calendar, color: Colors.black),
-        label: Text("NEW REMINDER", style: GoogleFonts.orbitron(color: Colors.black, fontWeight: FontWeight.bold)),
+      floatingActionButton: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(30),
+          gradient: LinearGradient(
+            colors: [_accentPurple, _accentCyan],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: _accentCyan.withOpacity(0.3),
+              blurRadius: 15,
+              spreadRadius: 1,
+              offset: const Offset(0, 4),
+            )
+          ],
+        ),
+        child: FloatingActionButton.extended(
+          onPressed: () async {
+            await Navigator.push(context, MaterialPageRoute(builder: (context) => const AddReminderScreen()));
+            _loadReminders(); 
+          },
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          highlightElevation: 0,
+          icon: const Icon(Icons.edit_calendar_rounded, color: Colors.white),
+          label: Text("NEW REMINDER", style: GoogleFonts.orbitron(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 1)),
+        ),
       ).animate(onPlay: (controller) => controller.repeat(reverse: true))
-       .boxShadow(
-         begin: BoxShadow(color: _accentColor.withOpacity(0.2), blurRadius: 5, spreadRadius: 0),
-         end: BoxShadow(color: _accentColor.withOpacity(0.6), blurRadius: 15, spreadRadius: 2),
-         duration: 2.seconds,
-       ),
+       .shimmer(duration: 3.seconds, color: Colors.white.withOpacity(0.2)),
     );
   }
 
@@ -167,14 +187,17 @@ class _ManageRemindersScreenState extends State<ManageRemindersScreen> {
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
+        color: _glassWhite,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: _glassBorder),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.event_note, color: _accentColor, size: 28),
+          CircleAvatar(
+            backgroundColor: _accentPink.withOpacity(0.15),
+            child: Icon(Icons.event_note_rounded, color: _accentPink, size: 22),
+          ),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
@@ -182,12 +205,12 @@ class _ManageRemindersScreenState extends State<ManageRemindersScreen> {
               children: [
                 Text(
                   "📅 ${reminder.date} at ${reminder.time}",
-                  style: GoogleFonts.orbitron(color: _accentColor, fontSize: 13, fontWeight: FontWeight.bold),
+                  style: GoogleFonts.orbitron(color: _accentCyan, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 0.5),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   reminder.reason, 
-                  style: GoogleFonts.outfit(color: Colors.white, fontSize: 15, height: 1.4),
+                  style: GoogleFonts.outfit(color: Colors.white70, fontSize: 14, height: 1.4),
                 ),
               ],
             ),
@@ -196,7 +219,7 @@ class _ManageRemindersScreenState extends State<ManageRemindersScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               IconButton(
-                icon: const Icon(Icons.edit_outlined, color: Colors.blueAccent),
+                icon: Icon(Icons.edit_outlined, color: _accentCyan.withOpacity(0.8)),
                 onPressed: () async {
                   final result = await Navigator.push(
                     context,
@@ -208,7 +231,7 @@ class _ManageRemindersScreenState extends State<ManageRemindersScreen> {
                 },
               ),
               IconButton(
-                icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent),
                 onPressed: () => _deleteReminder(reminder),
               ),
             ],

@@ -73,6 +73,7 @@ class AlertService {
                 final Map<String, dynamic> data = jsonDecode(jsonString);
                 
                 final String memberName = data['user_id'] ?? 'family member';
+                final String relationship = data['relationship'] ?? '';
                 final String emotion = data['emotion'] ?? 'negative emotion';
                 
                 // Format emotion and name beautifully (e.g. SAD -> Sadness, ANGRY -> Anger)
@@ -88,12 +89,17 @@ class AlertService {
                   }
                 }
                 
-                String displayName = memberName.toLowerCase();
+                String displayName = memberName;
                 if (displayName.isNotEmpty) {
+                  // Capitalize the first letter if not already
                   displayName = displayName[0].toUpperCase() + displayName.substring(1);
                 }
 
-                notificationMsg = "$displayEmotion detected on $displayName. Please check on them.";
+                if (relationship.isNotEmpty) {
+                  notificationMsg = "Your ${relationship.toLowerCase()} ($displayName) is experiencing $displayEmotion. Please check on them.";
+                } else {
+                  notificationMsg = "$displayEmotion detected on $displayName. Please check on them.";
+                }
               } catch (downloadErr) {
                 print("⚠️ S3 Alert Monitor download/parse error: $downloadErr");
               }

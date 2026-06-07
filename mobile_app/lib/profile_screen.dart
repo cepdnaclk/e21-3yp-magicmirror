@@ -28,10 +28,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Uint8List? _photoBytes; 
   bool _isLoading = false;
 
-  final Color _accentColor = const Color(0xFFC4D300);
-  final Color _bgDark = const Color(0xFF0A0B10);
-  final Color _glassWhite = Colors.white.withOpacity(0.05);
-  final Color _glassBorder = Colors.white.withOpacity(0.1);
+  final Color _accentCyan = const Color(0xFF00F0FF);
+  final Color _accentPurple = const Color(0xFF9E00FF);
+  final Color _bgDark = const Color(0xFF07080E);
+  final Color _glassWhite = Colors.white.withOpacity(0.03);
+  final Color _glassBorder = Colors.white.withOpacity(0.06);
 
   Future<void> _takePhoto() async {
     final picker = ImagePicker();
@@ -79,7 +80,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       appBar: AppBar(
         title: Text("Create Profile", style: GoogleFonts.orbitron(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 2))
           .animate(onPlay: (controller) => controller.repeat(reverse: true))
-          .shimmer(duration: 2.seconds, color: _accentColor.withOpacity(0.5)), 
+          .shimmer(duration: 3.seconds, color: _accentCyan.withOpacity(0.5)), 
         backgroundColor: Colors.transparent,
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
@@ -89,10 +90,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Positioned(
             top: -100, right: -100,
             child: Container(
-              width: 300, height: 300,
-              decoration: BoxDecoration(shape: BoxShape.circle, gradient: RadialGradient(colors: [_accentColor.withOpacity(0.15), Colors.transparent])),
+              width: 320, height: 320,
+              decoration: BoxDecoration(shape: BoxShape.circle, gradient: RadialGradient(colors: [_accentPurple.withOpacity(0.12), Colors.transparent])),
             ).animate(onPlay: (controller) => controller.repeat(reverse: true))
-             .scaleXY(end: 1.2, duration: 4.seconds, curve: Curves.easeInOut)
+             .scaleXY(end: 1.25, duration: 4.seconds, curve: Curves.easeInOut)
              .fadeIn(duration: 2.seconds),
           ),
           
@@ -105,25 +106,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   GestureDetector(
                     onTap: _takePhoto,
                     child: Container(
-                      height: 140, width: 140,
+                      height: 130, width: 130,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: _glassWhite,
-                        border: Border.all(color: _photoBytes != null ? _accentColor : _glassBorder, width: 2),
-                        boxShadow: _photoBytes != null ? [BoxShadow(color: _accentColor.withOpacity(0.2), blurRadius: 20)] : [],
+                        border: Border.all(color: _photoBytes != null ? _accentCyan : _glassBorder, width: 2),
+                        boxShadow: _photoBytes != null ? [BoxShadow(color: _accentCyan.withOpacity(0.15), blurRadius: 15)] : [],
                       ),
                       child: _photoBytes != null
                         ? ClipOval(child: Image.memory(_photoBytes!, fit: BoxFit.cover))
-                        : Icon(Icons.camera_alt, size: 40, color: _accentColor),
+                        : Icon(Icons.camera_alt_rounded, size: 36, color: _accentCyan),
                     ).animate(target: _photoBytes != null ? 1 : 0).shimmer(duration: 1.seconds, color: Colors.white),
                   ),
                   const SizedBox(height: 10),
-                  Text("Tap for Selfie", style: GoogleFonts.outfit(color: Colors.white54, fontSize: 14)),
+                  Text("Tap for Selfie", style: GoogleFonts.outfit(color: Colors.white38, fontSize: 13)),
 
                   const SizedBox(height: 30),
 
                   // 2. NAME
-                  _buildTextField(label: "Name", hint: "e.g. John Doe", controller: _nameCtrl, icon: Icons.person),
+                  _buildTextField(label: "Name", hint: "e.g. John Doe", controller: _nameCtrl, icon: Icons.person_rounded),
                   
                   const SizedBox(height: 20),
 
@@ -132,7 +133,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     label: "4-Digit PIN", 
                     hint: "Backup Access",
                     controller: _pinCtrl, 
-                    icon: Icons.lock, 
+                    icon: Icons.lock_rounded, 
                     isNumber: true
                   ),
 
@@ -150,27 +151,40 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   const SizedBox(height: 50),
 
                   // 5. REGISTER BUTTON
-                  SizedBox(
+                  Container(
                     width: double.infinity,
                     height: 55,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      gradient: LinearGradient(
+                        colors: [_accentPurple, _accentCyan],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: _accentCyan.withOpacity(0.2),
+                          blurRadius: 12,
+                          spreadRadius: 0,
+                          offset: const Offset(0, 4),
+                        )
+                      ],
+                    ),
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: _accentColor,
-                        foregroundColor: Colors.black,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                        backgroundColor: Colors.transparent,
+                        shadowColor: Colors.transparent,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                       ),
                       onPressed: _isLoading ? null : _submit,
                       child: _isLoading 
-                        ? const CircularProgressIndicator(color: Colors.black) 
-                        : Text("REGISTER USER", style: GoogleFonts.orbitron(fontSize: 16, fontWeight: FontWeight.bold)),
+                        ? const CircularProgressIndicator(color: Colors.white) 
+                        : Text("REGISTER USER", style: GoogleFonts.orbitron(fontSize: 15, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
                     ),
                   ).animate(onPlay: (controller) => controller.repeat(reverse: true))
-                   .boxShadow(
-                     begin: BoxShadow(color: _accentColor.withOpacity(0.2), blurRadius: 5, spreadRadius: 0),
-                     end: BoxShadow(color: _accentColor.withOpacity(0.6), blurRadius: 15, spreadRadius: 2),
-                     duration: 2.seconds,
-                   ),
-                ].animate(interval: 100.ms).fade(duration: 500.ms).slideY(begin: 0.1, end: 0, curve: Curves.easeOutQuad),
+                   .shimmer(duration: 3.seconds, color: Colors.white.withOpacity(0.2)),
+                ].animate(interval: 80.ms).fade(duration: 450.ms).slideY(begin: 0.08, end: 0, curve: Curves.easeOutQuad),
               ),
             ),
           ),
@@ -185,24 +199,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
       children: [
         Padding(
           padding: const EdgeInsets.only(bottom: 8.0, left: 5),
-          child: Text(label, style: GoogleFonts.orbitron(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+          child: Text(label, style: GoogleFonts.orbitron(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1)),
         ),
         Container(
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.08), 
-            borderRadius: BorderRadius.circular(15),
-            border: Border.all(color: Colors.white.withOpacity(0.1)),
+            color: _glassWhite, 
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: _glassBorder),
           ),
           child: TextField(
             controller: controller,
             keyboardType: isNumber ? TextInputType.number : TextInputType.text,
             maxLength: isNumber ? 4 : null,
-            style: GoogleFonts.outfit(color: Colors.white),
+            style: GoogleFonts.outfit(color: Colors.white, fontSize: 15),
             decoration: InputDecoration(
               hintText: hint,
-              hintStyle: GoogleFonts.outfit(color: Colors.white24),
+              hintStyle: GoogleFonts.outfit(color: Colors.white24, fontSize: 14),
               prefixIcon: Icon(icon, color: Colors.white54),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
               border: InputBorder.none,
               counterText: "",
             ),
@@ -218,21 +232,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
       children: [
         Padding(
           padding: const EdgeInsets.only(bottom: 8.0, left: 5),
-          child: Text(title, style: GoogleFonts.orbitron(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+          child: Text(title, style: GoogleFonts.orbitron(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1)),
         ),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.08), 
-            borderRadius: BorderRadius.circular(15),
-            border: Border.all(color: Colors.white.withOpacity(0.1)),
+            color: _glassWhite, 
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: _glassBorder),
           ),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
               value: value,
               dropdownColor: _bgDark,
               isExpanded: true,
-              style: GoogleFonts.outfit(color: Colors.white, fontSize: 16),
+              style: GoogleFonts.outfit(color: Colors.white, fontSize: 15),
               items: items.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
               onChanged: onChanged,
             ),

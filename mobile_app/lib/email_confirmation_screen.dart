@@ -16,8 +16,11 @@ class _EmailConfirmationScreenState extends State<EmailConfirmationScreen> {
   final _codeController = TextEditingController();
   bool _isLoading = false;
 
-  final Color _accentColor = const Color(0xFFC4D300);
-  final Color _bgDark = const Color(0xFF0A0B10);
+  final Color _accentCyan = const Color(0xFF00F0FF);
+  final Color _accentPurple = const Color(0xFF9E00FF);
+  final Color _bgDark = const Color(0xFF07080E);
+  final Color _glassWhite = Colors.white.withOpacity(0.03);
+  final Color _glassBorder = Colors.white.withOpacity(0.06);
 
   Future<void> _verifyCode() async {
     if (_codeController.text.trim().isEmpty) return;
@@ -60,10 +63,10 @@ class _EmailConfirmationScreenState extends State<EmailConfirmationScreen> {
           Positioned(
             top: -100, right: -100,
             child: Container(
-              width: 300, height: 300,
-              decoration: BoxDecoration(shape: BoxShape.circle, gradient: RadialGradient(colors: [_accentColor.withOpacity(0.15), Colors.transparent])),
+              width: 320, height: 320,
+              decoration: BoxDecoration(shape: BoxShape.circle, gradient: RadialGradient(colors: [_accentPurple.withOpacity(0.12), Colors.transparent])),
             ).animate(onPlay: (controller) => controller.repeat(reverse: true))
-             .scaleXY(end: 1.2, duration: 4.seconds, curve: Curves.easeInOut)
+             .scaleXY(end: 1.25, duration: 4.seconds, curve: Curves.easeInOut)
              .fadeIn(duration: 2.seconds),
           ),
           
@@ -75,27 +78,27 @@ class _EmailConfirmationScreenState extends State<EmailConfirmationScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text("Verify Email", 
-                    style: GoogleFonts.orbitron(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold))
+                    style: GoogleFonts.orbitron(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold, letterSpacing: 1.5))
                     .animate(onPlay: (controller) => controller.repeat(reverse: true))
-                    .shimmer(duration: 2.seconds, color: _accentColor.withOpacity(0.5)),
+                    .shimmer(duration: 3.seconds, color: _accentCyan.withOpacity(0.5)),
                   const SizedBox(height: 10),
                   Text("Enter the 6-digit code sent to ${widget.email}", 
-                    style: GoogleFonts.outfit(color: Colors.white54, fontSize: 14)),
+                    style: GoogleFonts.outfit(color: Colors.white38, fontSize: 13)),
                   
                   const SizedBox(height: 30),
 
                   // OTP Input Field
                   Container(
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.08), 
-                      borderRadius: BorderRadius.circular(15),
-                      border: Border.all(color: Colors.white.withOpacity(0.1)),
+                      color: _glassWhite, 
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: _glassBorder),
                     ),
                     child: TextField(
                       controller: _codeController,
                       keyboardType: TextInputType.number,
                       textAlign: TextAlign.center,
-                      style: GoogleFonts.orbitron(color: _accentColor, fontSize: 24, letterSpacing: 10),
+                      style: GoogleFonts.orbitron(color: _accentCyan, fontSize: 24, letterSpacing: 10),
                       decoration: InputDecoration(
                         hintText: "000000",
                         hintStyle: GoogleFonts.orbitron(color: Colors.white12, fontSize: 24),
@@ -107,25 +110,38 @@ class _EmailConfirmationScreenState extends State<EmailConfirmationScreen> {
 
                   const SizedBox(height: 30),
 
-                  SizedBox(
+                  Container(
                     width: double.infinity, height: 55,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      gradient: LinearGradient(
+                        colors: [_accentPurple, _accentCyan],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: _accentCyan.withOpacity(0.2),
+                          blurRadius: 12,
+                          spreadRadius: 0,
+                          offset: const Offset(0, 4),
+                        )
+                      ],
+                    ),
                     child: ElevatedButton(
                       onPressed: _isLoading ? null : _verifyCode,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: _accentColor,
-                        foregroundColor: Colors.black,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                        backgroundColor: Colors.transparent,
+                        shadowColor: Colors.transparent,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                       ),
                       child: _isLoading 
-                        ? const CircularProgressIndicator(color: Colors.black)
-                        : Text("VERIFY & CONFIRM", style: GoogleFonts.orbitron(fontWeight: FontWeight.bold)),
+                        ? const CircularProgressIndicator(color: Colors.white)
+                        : Text("VERIFY & CONFIRM", style: GoogleFonts.orbitron(fontWeight: FontWeight.bold, letterSpacing: 1.5)),
                     ),
                   ).animate(onPlay: (controller) => controller.repeat(reverse: true))
-                   .boxShadow(
-                     begin: BoxShadow(color: _accentColor.withOpacity(0.2), blurRadius: 5, spreadRadius: 0),
-                     end: BoxShadow(color: _accentColor.withOpacity(0.6), blurRadius: 15, spreadRadius: 2),
-                     duration: 2.seconds,
-                   ),
+                   .shimmer(duration: 3.seconds, color: Colors.white.withOpacity(0.2)),
                   
                   const SizedBox(height: 20),
                   
@@ -139,10 +155,10 @@ class _EmailConfirmationScreenState extends State<EmailConfirmationScreen> {
                           print(e);
                         }
                       },
-                      child: Text("Resend Code", style: GoogleFonts.outfit(color: _accentColor)),
+                      child: Text("Resend Code", style: GoogleFonts.outfit(color: _accentCyan, fontWeight: FontWeight.w600)),
                     ),
                   )
-                ].animate(interval: 100.ms).fade(duration: 500.ms).slideY(begin: 0.1, end: 0, curve: Curves.easeOutQuad),
+                ].animate(interval: 80.ms).fade(duration: 450.ms).slideY(begin: 0.08, end: 0, curve: Curves.easeOutQuad),
               ),
             ),
           ),
