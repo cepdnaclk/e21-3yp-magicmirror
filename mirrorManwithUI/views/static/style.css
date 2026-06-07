@@ -355,11 +355,147 @@ body {
     z-index: 10;
 }
 
-#mirror-video {
-    width: 70%;
-    filter:
-        drop-shadow(0 0 32px rgba(255, 216, 107, 0.34)) brightness(1.08);
+/* ── Custom Female Avatar ──────────────────────────── */
+#mirror-avatar {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    width: 420px;
+    height: 420px;
+    transition: opacity 0.6s ease;
 }
+
+#mirror-avatar.avatar-paused {
+    opacity: 0.3;
+}
+
+/* Glow rings */
+.avatar-glow-ring {
+    position: absolute;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 216, 107, 0.3);
+    animation: ring-idle 3s ease-in-out infinite;
+    pointer-events: none;
+}
+.ring-1 { width: 280px; height: 280px; animation-delay: 0s; }
+.ring-2 { width: 330px; height: 330px; animation-delay: 0.5s; border-color: rgba(255, 216, 107, 0.18); }
+.ring-3 { width: 390px; height: 390px; animation-delay: 1s;  border-color: rgba(255, 216, 107, 0.09); }
+
+@keyframes ring-idle {
+    0%, 100% { transform: scale(1);    opacity: 0.7; }
+    50%       { transform: scale(1.04); opacity: 1;   }
+}
+
+/* State: talking — bright gold, fast pulse */
+#mirror-avatar.state-talking .avatar-glow-ring {
+    border-color: rgba(255, 216, 107, 0.75);
+    animation: ring-talking 0.6s ease-in-out infinite;
+    box-shadow: 0 0 18px rgba(255, 216, 107, 0.4);
+}
+@keyframes ring-talking {
+    0%, 100% { transform: scale(1);    opacity: 1;   }
+    50%       { transform: scale(1.06); opacity: 0.7; }
+}
+
+/* State: thinking — cyan/blue, slow spiral */
+#mirror-avatar.state-thinking .avatar-glow-ring {
+    border-color: rgba(100, 200, 255, 0.6);
+    animation: ring-thinking 2s ease-in-out infinite;
+    box-shadow: 0 0 14px rgba(100, 200, 255, 0.25);
+}
+@keyframes ring-thinking {
+    0%   { transform: scale(1)    rotate(0deg);  opacity: 0.8; }
+    50%  { transform: scale(1.03) rotate(5deg);  opacity: 1;   }
+    100% { transform: scale(1)    rotate(0deg);  opacity: 0.8; }
+}
+
+/* State: listening — green, medium pulse */
+#mirror-avatar.state-listening .avatar-glow-ring {
+    border-color: rgba(100, 255, 160, 0.55);
+    animation: ring-listening 1.2s ease-in-out infinite;
+    box-shadow: 0 0 14px rgba(100, 255, 160, 0.2);
+}
+@keyframes ring-listening {
+    0%, 100% { transform: scale(1);    opacity: 0.8; }
+    50%       { transform: scale(1.05); opacity: 1;   }
+}
+
+/* Avatar core + face SVG */
+.avatar-core {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    z-index: 2;
+}
+
+#avatar-face {
+    width: 240px;
+    height: 264px;
+    filter: drop-shadow(0 0 18px rgba(255, 216, 107, 0.35));
+    animation: avatar-float 4s ease-in-out infinite;
+}
+@keyframes avatar-float {
+    0%, 100% { transform: translateY(0);   }
+    50%       { transform: translateY(-8px); }
+}
+
+/* Blink animation on the eye elements */
+#eye-l, #eye-r {
+    animation: avatar-blink 5s ease-in-out infinite;
+}
+@keyframes avatar-blink {
+    0%, 90%, 100% { transform: scaleY(1);   }
+    94%            { transform: scaleY(0.1); }
+}
+
+/* Sound bars — shown when talking */
+.avatar-sound-bars {
+    display: flex;
+    align-items: flex-end;
+    gap: 5px;
+    height: 28px;
+    margin-top: 10px;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+.avatar-sound-bars.active {
+    opacity: 1;
+}
+.avatar-sound-bars .bar {
+    width: 5px;
+    background: linear-gradient(to top, var(--gold), rgba(255, 216, 107, 0.4));
+    border-radius: 3px;
+    animation: none;
+}
+.avatar-sound-bars.active .bar {
+    animation: soundbar 0.6s ease-in-out infinite alternate;
+}
+.avatar-sound-bars.active .bar:nth-child(1) { animation-duration: 0.55s; animation-delay: 0.0s; }
+.avatar-sound-bars.active .bar:nth-child(2) { animation-duration: 0.42s; animation-delay: 0.1s; }
+.avatar-sound-bars.active .bar:nth-child(3) { animation-duration: 0.48s; animation-delay: 0.05s; }
+.avatar-sound-bars.active .bar:nth-child(4) { animation-duration: 0.38s; animation-delay: 0.15s; }
+.avatar-sound-bars.active .bar:nth-child(5) { animation-duration: 0.52s; animation-delay: 0.08s; }
+@keyframes soundbar {
+    from { height: 4px;  }
+    to   { height: 26px; }
+}
+
+/* Status label below the avatar */
+.avatar-status-label {
+    margin-top: 14px;
+    font-family: 'Cinzel', serif;
+    font-size: 14px;
+    letter-spacing: 2.5px;
+    color: var(--gold);
+    text-shadow: 0 0 10px rgba(255, 216, 107, 0.55);
+    text-transform: uppercase;
+    transition: color 0.4s ease;
+}
+#mirror-avatar.state-thinking  .avatar-status-label { color: #64c8ff; text-shadow: 0 0 10px rgba(100,200,255,0.5); }
+#mirror-avatar.state-listening .avatar-status-label { color: #64ffa0; text-shadow: 0 0 10px rgba(100,255,160,0.5); }
 
 /* Bottom center notifications */
 .bottom-center {

@@ -33,7 +33,7 @@ class _AddReminderScreenState extends State<AddReminderScreen> {
       String dateStr = _selectedDate != null ? "${_selectedDate!.month}/${_selectedDate!.day}/${_selectedDate!.year}" : "Today";
       String timeStr = _selectedTime != null ? _selectedTime!.format(context) : "Anytime";
       
-      // Create a new Reminder model instance
+      // 1. Create a new Reminder model instance and save to DynamoDB
       final newReminder = Reminder(
         date: dateStr,
         time: timeStr,
@@ -49,6 +49,25 @@ class _AddReminderScreenState extends State<AddReminderScreen> {
 
       if (response.hasErrors) {
         throw Exception(response.errors.first.message);
+      }
+
+      // 2. Dual-write: Upload the reminder file to the S3 bucket (under public/reminders/)
+      try {
+        final attributes = await Amplify.Auth.fetchUserAttributes();
+        final emailAttr = attributes.firstWhere((attr) => attr.userAttributeKey == AuthUserAttributeKey.email);
+        final userPrefix = emailAttr.value.replaceAll('@gmail.com', '').toLowerCase().trim();
+
+        String finalMessage = "📅 Upcoming: $dateStr at $timeStr\n👉 ${_reasonController.text.trim()}";
+        final String timestamp = DateTime.now().millisecondsSinceEpoch.toString();
+        final String pathName = 'public/reminders/${userPrefix}_Task_$timestamp.txt';
+
+        await Amplify.Storage.uploadData(
+          data: StorageDataPayload.string(finalMessage),
+          path: StoragePath.fromString(pathName),
+        ).result;
+      } catch (s3Error) {
+        // Log S3 error but don't fail the operation since the database save succeeded
+        print("S3 Upload failed: $s3Error");
       }
 
       if (mounted) {

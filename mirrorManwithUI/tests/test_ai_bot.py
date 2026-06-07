@@ -75,8 +75,8 @@ class TestVideoBroadcastSourceInspection:
         """detect_wake_word should broadcast 'show_mirror' on wake word detection."""
         from services.ai_bot import SinhalaBot
         source = inspect.getsource(SinhalaBot.detect_wake_word)
-        assert '"show_mirror"' in source or "'show_mirror'" in source, \
-            "detect_wake_word should broadcast 'show_mirror'"
+        assert '"mirror_show"' in source or "'mirror_show'" in source, \
+            "detect_wake_word should broadcast JSON containing 'mirror_show'"
 
     def test_detect_wake_word_does_not_broadcast_active(self):
         """detect_wake_word must NOT broadcast 'active' (old protocol)."""
@@ -89,8 +89,8 @@ class TestVideoBroadcastSourceInspection:
         """run() should broadcast 'hide_mirror' to restore the dashboard."""
         from services.ai_bot import SinhalaBot
         source = inspect.getsource(SinhalaBot.run)
-        assert '"hide_mirror"' in source or "'hide_mirror'" in source, \
-            "run() should broadcast 'hide_mirror'"
+        assert '"mirror_hide"' in source or "'mirror_hide'" in source, \
+            "run() should broadcast JSON containing 'mirror_hide'"
 
     def test_run_last_broadcast_is_hide_mirror(self):
         """The last broadcast in run() should be 'hide_mirror'."""
@@ -103,8 +103,8 @@ class TestVideoBroadcastSourceInspection:
                 last_broadcast_line = line.strip()
                 break
         assert last_broadcast_line is not None
-        assert 'hide_mirror' in last_broadcast_line, \
-            f"Last broadcast in run() should be 'hide_mirror', got: {last_broadcast_line}"
+        assert 'mirror_hide' in last_broadcast_line, \
+            f"Last broadcast in run() should be JSON containing 'mirror_hide', got: {last_broadcast_line}"
 
     def test_run_session_broadcasts_idle_for_listening(self):
         """run_session should broadcast 'idle' when waiting for user speech."""
@@ -135,12 +135,12 @@ class TestVideoBroadcastSourceInspection:
         from services.ai_bot import SinhalaBot
         source = inspect.getsource(SinhalaBot.run_session)
         # Find the thinking broadcast
-        thinking_match = re.search(r'broadcast\(["\']thinking["\']\)', source)
-        assert thinking_match is not None, "Should have broadcast('thinking')"
+        thinking_match = re.search(r'broadcast\(.*["\']thinking["\'].*\)', source)
+        assert thinking_match is not None, "Should have broadcast JSON containing 'thinking'"
         # Find a talking broadcast that comes AFTER thinking (the AI response talking)
         after_thinking = source[thinking_match.end():]
-        assert 'broadcast("talking")' in after_thinking or "broadcast('talking')" in after_thinking, \
-            "Should have broadcast('talking') after broadcast('thinking') in AI response path"
+        assert re.search(r'broadcast\(.*["\']talking["\'].*\)', after_thinking), \
+            "Should have broadcast JSON containing 'talking' after 'thinking' in AI response path"
 
     def test_run_session_idle_broadcast_after_talking(self):
         """After speaking a response, run_session should broadcast 'idle' to show idle.mp4."""
@@ -160,9 +160,9 @@ class TestVideoBroadcastSourceInspection:
         source = inspect.getsource(SinhalaBot.run)
         talking_pos = source.find('"talking"')
         idle_pos = source.find('"idle"')
-        hide_pos = source.find('"hide_mirror"')
+        hide_pos = source.find('"mirror_hide"')
         assert talking_pos < idle_pos < hide_pos, \
-            f"Expected talking({talking_pos}) < idle({idle_pos}) < hide_mirror({hide_pos})"
+            f"Expected talking({talking_pos}) < idle({idle_pos}) < mirror_hide({hide_pos})"
 
     def test_shutdown_broadcasts_talking_before_speaking(self):
         """On shutdown keyword, should broadcast 'talking' before the goodbye TTS."""

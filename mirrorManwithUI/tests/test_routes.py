@@ -107,3 +107,32 @@ class TestRoutes:
             assert data["type"] == "presence"
             assert data["value"] == "present"
 
+    def test_websocket_disconnect_deactivates_bot_when_last_tab_closes(self, test_app):
+        """When the last browser tab disconnects, the bot should be deactivated."""
+        app, mock_bot, _ = test_app
+        mock_bot.is_active = True
+        mock_bot.is_speaking = True
+        client = TestClient(app)
+
+        with client.websocket_connect("/ws") as ws:
+            ws.receive_text()  # consume presence message
+
+        # After the tab closes (context manager exit), bot should be deactivated
+        assert mock_bot.is_active is False
+        assert mock_bot.is_speaking is False
+
+    def test_websocket_disconnect_keeps_bot_active_if_another_tab_open(self, test_app):
+        """If a second tab is still connected, closing one tab should NOT stop the bot."""
+        app, mock_bot, test_manager = test_app
+        mock_bot.is_active = True
+        mock_bot.is_speaking = False
+        client = TestClient(app)
+
+        # Open two connections
+        with client.websocket_connect("/ws") as ws1:
+            ws1.receive_text()  # consume presence message
+            with client.websocket_connect("/ws") as ws2:
+                ws2.receive_text()  # consume presence message
+                # Close the inner tab (ws2) — ws1 is still open
+            # bot should still be active since ws1 is open
+            assert mock_bot.is_active is True

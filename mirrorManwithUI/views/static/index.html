@@ -11,6 +11,7 @@
         rel="stylesheet">
 
     <link rel="stylesheet" href="/static/style.css">
+    <script src="https://unpkg.com/@dotlottie/player-component@latest/dist/dotlottie-player.mjs" type="module"></script>
 </head>
 
 <body>
@@ -71,9 +72,52 @@
         </div>
 
         <div id="video-layer">
-            <video id="mirror-video" loop muted playsinline>
-                <source src="static/idle.mp4" type="video/mp4">
-            </video>
+            <div id="mirror-avatar">
+                <div class="avatar-glow-ring ring-3"></div>
+                <div class="avatar-glow-ring ring-2"></div>
+                <div class="avatar-glow-ring ring-1"></div>
+                <div class="avatar-core">
+                    <svg id="avatar-face" viewBox="0 0 200 220" xmlns="http://www.w3.org/2000/svg">
+                        <!-- Hair -->
+                        <ellipse cx="100" cy="75" rx="58" ry="62" fill="#2a1a3e"/>
+                        <ellipse cx="100" cy="60" rx="52" ry="55" fill="#3d2060"/>
+                        <!-- Hair highlights -->
+                        <ellipse cx="72" cy="48" rx="18" ry="26" fill="#5a2d90" opacity="0.7"/>
+                        <!-- Face -->
+                        <ellipse cx="100" cy="108" rx="44" ry="52" fill="#f5c9a0"/>
+                        <!-- Neck -->
+                        <rect x="88" y="154" width="24" height="20" rx="6" fill="#f5c9a0"/>
+                        <!-- Shoulders/Body -->
+                        <ellipse cx="100" cy="195" rx="52" ry="28" fill="#6a1b9a"/>
+                        <!-- Eyes -->
+                        <ellipse cx="84" cy="102" rx="7" ry="8" fill="white"/>
+                        <ellipse cx="116" cy="102" rx="7" ry="8" fill="white"/>
+                        <circle cx="85" cy="103" r="5" fill="#2a1a3e" id="eye-l"/>
+                        <circle cx="117" cy="103" r="5" fill="#2a1a3e" id="eye-r"/>
+                        <!-- Eye shine -->
+                        <circle cx="87" cy="101" r="1.5" fill="white"/>
+                        <circle cx="119" cy="101" r="1.5" fill="white"/>
+                        <!-- Eyebrows -->
+                        <path d="M77 93 Q84 89 91 92" stroke="#3d2060" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+                        <path d="M109 92 Q116 89 123 93" stroke="#3d2060" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+                        <!-- Nose -->
+                        <path d="M100 110 Q96 118 99 120 Q100 121 101 120 Q104 118 100 110" fill="#e8a87c"/>
+                        <!-- Mouth (default smile) -->
+                        <path id="avatar-mouth" d="M90 130 Q100 138 110 130" stroke="#c0706a" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+                        <!-- Cheeks -->
+                        <ellipse cx="78" cy="122" rx="10" ry="6" fill="#f4a7b9" opacity="0.4"/>
+                        <ellipse cx="122" cy="122" rx="10" ry="6" fill="#f4a7b9" opacity="0.4"/>
+                        <!-- Earrings -->
+                        <circle cx="56" cy="115" r="4" fill="#ffd86b" opacity="0.9"/>
+                        <circle cx="144" cy="115" r="4" fill="#ffd86b" opacity="0.9"/>
+                    </svg>
+                    <div class="avatar-sound-bars" id="sound-bars">
+                        <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+                        <div class="bar"></div><div class="bar"></div>
+                    </div>
+                </div>
+                <div class="avatar-status-label" id="avatar-status">Ready</div>
+            </div>
         </div>
 
         <div class="widget bottom-center glass-card" id="notification-container">
@@ -214,9 +258,51 @@
             notifyBox.innerHTML = '<p class="status-text">No new messages</p>';
         }
 
+        function setAvatarState(state) {
+            const avatar = document.getElementById('mirror-avatar');
+            const soundBars = document.getElementById('sound-bars');
+            const statusLabel = document.getElementById('avatar-status');
+            const mouth = document.getElementById('avatar-mouth');
+            if (!avatar) return;
+
+            // Remove all state classes
+            avatar.classList.remove('state-idle', 'state-talking', 'state-thinking', 'state-listening');
+
+            if (state === 'idle') {
+                avatar.classList.add('state-idle');
+                if (soundBars) soundBars.classList.remove('active');
+                if (statusLabel) statusLabel.innerText = 'Ready';
+                if (mouth) mouth.setAttribute('d', 'M90 130 Q100 138 110 130');
+            } else if (state === 'talking' || state === 'speaking') {
+                avatar.classList.add('state-talking');
+                if (soundBars) soundBars.classList.add('active');
+                if (statusLabel) statusLabel.innerText = 'Speaking...';
+                if (mouth) mouth.setAttribute('d', 'M90 128 Q100 140 110 128 Q105 133 100 134 Q95 133 90 128');
+            } else if (state === 'thinking') {
+                avatar.classList.add('state-thinking');
+                if (soundBars) soundBars.classList.remove('active');
+                if (statusLabel) statusLabel.innerText = 'Thinking...';
+                if (mouth) mouth.setAttribute('d', 'M93 132 Q100 130 107 132');
+            } else if (state === 'listening') {
+                avatar.classList.add('state-listening');
+                if (soundBars) soundBars.classList.remove('active');
+                if (statusLabel) statusLabel.innerText = 'Listening...';
+                if (mouth) mouth.setAttribute('d', 'M90 130 Q100 138 110 130');
+            }
+        }
+
+        function playAvatar() {
+            const avatar = document.getElementById('mirror-avatar');
+            if (avatar) avatar.classList.remove('avatar-paused');
+        }
+
+        function pauseAvatar() {
+            const avatar = document.getElementById('mirror-avatar');
+            if (avatar) avatar.classList.add('avatar-paused');
+        }
+
         function updateBlackoutState() {
             const wrapper = document.getElementById('mirror-wrapper');
-            const v = document.getElementById('mirror-video');
             if (userIsPresent) {
                 wrapper.classList.remove('black-out');
             } else {
@@ -224,13 +310,12 @@
                     wrapper.classList.remove('black-out');
                 } else {
                     wrapper.classList.add('black-out');
-                    v.pause();
+                    pauseAvatar();
                 }
             }
         }
 
         socket.onmessage = (event) => {
-            const v = document.getElementById('mirror-video');
             const wrapper = document.getElementById('mirror-wrapper');
             const uiLayer = document.getElementById('ui-layer');
             const videoLayer = document.getElementById('video-layer');
@@ -245,61 +330,90 @@
                 payload = event.data;
             }
 
+            // --- Legacy plain-string protocol (backward compat) ---
             if (typeof payload === 'string') {
                 if (payload === 'show_mirror') {
                     mirrorActive = true;
-
                     uiLayer.classList.add('hidden');
                     videoLayer.classList.add('visible');
-
-                    if (!v.src.includes('idle.mp4')) {
-                        v.src = 'static/idle.mp4';
-                    }
-
-                    v.play();
+                    setAvatarState('idle');
                     return;
                 }
-
                 if (payload === 'hide_mirror') {
                     mirrorActive = false;
-
                     videoLayer.classList.remove('visible');
                     uiLayer.classList.remove('hidden');
-
-                    v.pause();
+                    pauseAvatar();
                     return;
                 }
-
                 if (payload === 'idle') {
                     if (mirrorActive) {
-                        if (!v.src.includes('idle.mp4')) {
-                            v.src = 'static/idle.mp4';
-                        }
-
-                        v.play();
+                        setAvatarState('idle');
                     }
-
                     return;
                 }
-
                 if (payload === 'thinking') {
-                    if (!v.src.includes('thinking.mp4')) {
-                        v.src = 'static/thinking.mp4';
-                        v.play();
-                    }
-
+                    setAvatarState('thinking');
                     return;
                 }
-
                 if (payload === 'talking') {
-                    if (!v.src.includes('talking.mp4')) {
-                        v.src = 'static/talking.mp4';
-                        v.play();
-                    }
-
+                    setAvatarState('talking');
                     return;
                 }
+                return;
+            }
 
+            // --- New JSON protocol from ai_bot.py ---
+            // {"type": "mirror_show", "status": "active"}
+            if (payload && payload.type === 'mirror_show') {
+                mirrorActive = true;
+                uiLayer.classList.add('hidden');
+                videoLayer.classList.add('visible');
+                setAvatarState('idle');
+                return;
+            }
+
+            // {"type": "mirror_hide", "status": "sleep"}
+            if (payload && payload.type === 'mirror_hide') {
+                mirrorActive = false;
+                videoLayer.classList.remove('visible');
+                uiLayer.classList.remove('hidden');
+                pauseAvatar();
+                return;
+            }
+
+            // {"type": "video", "state": "idle" | "talking" | "thinking"}
+            if (payload && payload.type === 'video') {
+                const state = payload.state;
+                if (state === 'idle') {
+                    if (mirrorActive) {
+                        setAvatarState('idle');
+                    }
+                    return;
+                }
+                if (state === 'talking') {
+                    setAvatarState('talking');
+                    return;
+                }
+                if (state === 'thinking') {
+                    setAvatarState('thinking');
+                    return;
+                }
+                return;
+            }
+
+            // {"type": "status", "state": "thinking" | "listening" | "idle"}
+            if (payload && payload.type === 'status') {
+                const state = payload.state;
+                if (state === 'thinking') {
+                    setAvatarState('thinking');
+                } else if (state === 'listening') {
+                    setAvatarState('listening');
+                } else if (state === 'idle') {
+                    if (mirrorActive) {
+                        setAvatarState('idle');
+                    }
+                }
                 return;
             }
 

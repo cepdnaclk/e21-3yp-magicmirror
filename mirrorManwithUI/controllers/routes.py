@@ -47,3 +47,8 @@ def register_routes(app, bot, manager):
                 await websocket.receive_text()
         except WebSocketDisconnect:
             manager.disconnect(websocket)
+            # If no browser tab is open anymore, stop the bot
+            if len(manager.active_connections) == 0 and bot.is_active:
+                print("[INFO] Last browser tab closed — stopping Mirror Man.", flush=True)
+                bot.is_active = False
+                bot.is_speaking = False

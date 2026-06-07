@@ -83,7 +83,22 @@ def get_family_member_owners(detected_person):
                 clean_detected_norm = clean_detected.replace('.', '_').replace('-', '_').strip().lower()
 
                 if clean_db_name == clean_detected_norm or clean_detected_norm in clean_db_name or clean_db_name in clean_detected_norm:
-                    owners.add(db_owner)
+                    # Resolve clean owner prefix from imagePaths to match mobile app folder naming (e.g., 'slhelix300')
+                    resolved_owner = None
+                    image_paths = item.get('imagePaths', {}).get('L', [])
+                    if image_paths:
+                        first_path = image_paths[0].get('S', '')
+                        if first_path:
+                            filename = os.path.basename(first_path)
+                            # Format: {mainUserEmail}_{cleanName}_{angle}.jpg
+                            parts = filename.split('_')
+                            if parts:
+                                resolved_owner = parts[0].strip().lower()
+                    
+                    if not resolved_owner:
+                        resolved_owner = db_owner
+                        
+                    owners.add(resolved_owner)
 
     except Exception as e:
         print(f"⚠️  DynamoDB query failed: {e}", flush=True)
