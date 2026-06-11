@@ -625,3 +625,283 @@ body {
         transform: translateY(0);
     }
 }
+
+/* ============================================================
+   PHOTO GALLERY OVERLAY
+   ============================================================ */
+
+#photo-gallery-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 8000;
+
+    background: rgba(0, 0, 0, 0.92);
+    backdrop-filter: blur(18px);
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.8s ease, visibility 0.8s ease;
+}
+
+#photo-gallery-overlay.gallery-visible {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* Header bar */
+#gallery-header {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 28px 48px 20px;
+
+    background: linear-gradient(
+        to bottom,
+        rgba(0, 0, 0, 0.85) 0%,
+        rgba(0, 0, 0, 0) 100%
+    );
+    z-index: 2;
+}
+
+#gallery-title {
+    font-family: 'Cinzel', serif;
+    font-size: 18px;
+    letter-spacing: 3px;
+    font-weight: 500;
+    color: var(--gold);
+    text-shadow:
+        0 0 10px rgba(255, 216, 107, 0.65),
+        0 0 24px rgba(255, 216, 107, 0.28);
+}
+
+#gallery-photo-count {
+    font-family: 'Lora', serif;
+    font-size: 15px;
+    color: var(--muted-white);
+    letter-spacing: 1px;
+}
+
+/* ── Main image display ── */
+#gallery-stage {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+}
+
+.gallery-slide {
+    position: absolute;
+    inset: 0;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+
+    opacity: 0;
+    transition: opacity 1.2s ease;
+
+    /* Ken Burns zoom-pan animation assigned per slide */
+}
+
+.gallery-slide.active {
+    opacity: 1;
+}
+
+/* Ken Burns variants (applied via JS) */
+@keyframes kenBurns-zoomIn {
+    from { transform: scale(1) translate(0, 0); }
+    to   { transform: scale(1.18) translate(-2%, -1%); }
+}
+
+@keyframes kenBurns-panRight {
+    from { transform: scale(1.1) translate(-3%, 0); }
+    to   { transform: scale(1.18) translate(3%, -1%); }
+}
+
+@keyframes kenBurns-panLeft {
+    from { transform: scale(1.1) translate(3%, -1%); }
+    to   { transform: scale(1.18) translate(-3%, 0); }
+}
+
+@keyframes kenBurns-zoomOut {
+    from { transform: scale(1.2) translate(-2%, 1%); }
+    to   { transform: scale(1.0) translate(0, 0); }
+}
+
+.kb-zoom-in  { animation: kenBurns-zoomIn  8s ease forwards; }
+.kb-pan-right{ animation: kenBurns-panRight 8s ease forwards; }
+.kb-pan-left { animation: kenBurns-panLeft  8s ease forwards; }
+.kb-zoom-out { animation: kenBurns-zoomOut  8s ease forwards; }
+
+/* Dark vignette over each photo */
+#gallery-stage::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    background: radial-gradient(
+        ellipse at center,
+        transparent 40%,
+        rgba(0, 0, 0, 0.55) 100%
+    );
+    pointer-events: none;
+}
+
+/* ── Navigation arrows ── */
+#gallery-prev,
+#gallery-next {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 10;
+
+    background: rgba(0, 0, 0, 0.45);
+    border: 1px solid rgba(255, 216, 107, 0.35);
+    border-radius: 50%;
+    width: 60px;
+    height: 60px;
+
+    font-size: 30px;
+    color: var(--gold);
+    cursor: pointer;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    transition: background 0.25s ease, box-shadow 0.25s ease;
+    backdrop-filter: blur(8px);
+}
+
+#gallery-prev { left: 32px; }
+#gallery-next { right: 32px; }
+
+#gallery-prev:hover,
+#gallery-next:hover {
+    background: rgba(255, 216, 107, 0.18);
+    box-shadow: 0 0 16px rgba(255, 216, 107, 0.45);
+}
+
+/* ── Dot indicators ── */
+#gallery-dots {
+    position: absolute;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.gallery-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: rgba(255, 250, 240, 0.35);
+    transition: background 0.3s ease, transform 0.3s ease;
+    cursor: pointer;
+}
+
+.gallery-dot.dot-active {
+    background: var(--gold);
+    transform: scale(1.4);
+    box-shadow: 0 0 8px rgba(255, 216, 107, 0.75);
+}
+
+/* ── Bottom hint ── */
+#gallery-hint {
+    position: absolute;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+
+    font-family: 'Lora', serif;
+    font-size: 14px;
+    letter-spacing: 1.5px;
+    color: rgba(255, 250, 240, 0.45);
+    white-space: nowrap;
+
+    animation: neon-blink 2.5s infinite;
+}
+
+/* ── Progress bar (auto-advance countdown) ── */
+#gallery-progress-wrap {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: rgba(255, 216, 107, 0.1);
+    z-index: 10;
+}
+
+#gallery-progress-bar {
+    height: 100%;
+    background: var(--gold);
+    width: 100%;
+    transition: width linear;
+    box-shadow: 0 0 8px rgba(255, 216, 107, 0.6);
+}
+
+/* ── No-photos state ── */
+#gallery-empty {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 18px;
+    z-index: 10;
+}
+
+#gallery-empty .empty-icon {
+    font-size: 72px;
+    opacity: 0.4;
+}
+
+#gallery-empty p {
+    font-family: 'Lora', serif;
+    font-size: 22px;
+    color: var(--muted-white);
+    text-align: center;
+    line-height: 1.7;
+}
+
+/* ── Loading spinner ── */
+#gallery-loader {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 22px;
+    z-index: 10;
+}
+
+.gallery-spinner {
+    width: 52px;
+    height: 52px;
+    border: 3px solid rgba(255, 216, 107, 0.15);
+    border-top-color: var(--gold);
+    border-radius: 50%;
+    animation: gallery-spin 0.9s linear infinite;
+}
+
+@keyframes gallery-spin {
+    to { transform: rotate(360deg); }
+}
+
+#gallery-loader p {
+    font-family: 'Cinzel', serif;
+    font-size: 14px;
+    letter-spacing: 2px;
+    color: var(--muted-white);
+}

@@ -1,9 +1,11 @@
 import os
 import json
 from fastapi import WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse, FileResponse
+from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
 
 from models.app_state import notifications, priority_schedule
+from config.settings import BUCKET_NAME
+from config.aws_config import get_s3_client
 
 
 def register_routes(app, bot, manager):
@@ -31,6 +33,45 @@ def register_routes(app, bot, manager):
             "priority_schedule": priority_schedule,
             "notifications": notifications
         }
+
+    @app.get("/api/photos")
+    async def get_photos():
+        """List all photos in S3 public/slideshow/ and return presigned URLs."""
+        try:
+            s3 = get_s3_client()
+            res = s3.list_objects_v2(Bucket=BUCKET_NAME, Prefix="public/slideshow/")
+
+            photo_urls = []
+            if "Contents" in res:
+                for item in res["Contents"]:
+                    key = item["Key"]
+                    # Skip folder entries and non-image files
+                    if key.endswith("/"):
+                        continue
+                    lower = key.lower()
+                    if not (lower.endswith(".jpg") or lower.endswith(".jpeg")
+                            or lower.endswith(".png") or lower.endswith(".webp")):
+                        continue
+
+                    # Generate a presigned URL valid for 1 hour
+                    url = s3.generate_presigned_url(
+                        "get_object",
+                        Params={"Bucket": BUCKET_NAME, "Key": key},
+                        ExpiresIn=3600,
+                    )
+                    photo_urls.append({"key": key, "url": url})
+
+            # Sort by key name (chronological for slide_<timestamp>.jpg naming)
+            photo_urls.sort(key=lambda x: x["key"])
+
+            return JSONResponse({"status": "success", "photos": photo_urls})
+
+        except Exception as e:
+            print(f"[WARNING] [Photos API] Error fetching photos from S3: {e}", flush=True)
+            return JSONResponse(
+                status_code=503,
+                content={"status": "error", "message": str(e)}
+            )
 
     @app.websocket("/ws")
     async def websocket_endpoint(websocket: WebSocket):

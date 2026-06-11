@@ -84,6 +84,50 @@
         </div>
     </div>
 
+    <!-- ============ PHOTO GALLERY OVERLAY ============ -->
+    <div id="photo-gallery-overlay" aria-label="Family Photo Gallery">
+
+        <!-- Header -->
+        <div id="gallery-header">
+            <span id="gallery-title">📸 &nbsp;Family Memories</span>
+            <span id="gallery-photo-count"></span>
+        </div>
+
+        <!-- Fullscreen slide stage -->
+        <div id="gallery-stage">
+            <!-- Slides injected by JS -->
+
+            <!-- Navigation arrows -->
+            <button id="gallery-prev" aria-label="Previous photo">‹</button>
+            <button id="gallery-next" aria-label="Next photo">›</button>
+
+            <!-- Dot indicators -->
+            <div id="gallery-dots"></div>
+
+            <!-- Dismiss hint -->
+            <div id="gallery-hint">Say “close photos” to close</div>
+
+            <!-- Progress bar -->
+            <div id="gallery-progress-wrap">
+                <div id="gallery-progress-bar"></div>
+            </div>
+        </div>
+
+        <!-- Loading state -->
+        <div id="gallery-loader">
+            <div class="gallery-spinner"></div>
+            <p>Loading photos…</p>
+        </div>
+
+        <!-- Empty state -->
+        <div id="gallery-empty">
+            <div class="empty-icon">🖼️</div>
+            <p>No photos yet.<br>Upload some from your app!</p>
+        </div>
+
+    </div>
+    <!-- ================================================ -->
+
     <script>
         function updateTime() {
             const now = new Date();
@@ -449,6 +493,17 @@
                 syncReminderList(payload.items);
                 return;
             }
+
+            // ── Photo gallery ───────────────────────────────────────────
+            if (payload && payload.type === 'show_photos') {
+                Gallery.open();
+                return;
+            }
+            if (payload && payload.type === 'hide_photos') {
+                Gallery.close();
+                return;
+            }
+
         };
 
         async function updateMirrorData() {
@@ -544,6 +599,179 @@
                 }
             }, 4000);
         });
+
+        // =====================================================
+        //  PHOTO GALLERY CONTROLLER
+        // =====================================================
+        const Gallery = (() => {
+            const SLIDE_DURATION_MS  = 8000;   // ms each photo is shown
+            const AUTO_CLOSE_MS      = 90000;  // auto-close after 90 s
+            const KB_CLASSES = ['kb-zoom-in', 'kb-pan-right', 'kb-pan-left', 'kb-zoom-out'];
+
+            let photos        = [];   // [{key, url}, ...]
+            let currentIndex  = 0;
+            let slideTimer    = null;
+            let autoCloseTimer = null;
+            let progressTimer  = null;
+
+            // DOM refs (resolved once the page loads)
+            const overlay     = () => document.getElementById('photo-gallery-overlay');
+            const stage       = () => document.getElementById('gallery-stage');
+            const dotsWrap    = () => document.getElementById('gallery-dots');
+            const countEl     = () => document.getElementById('gallery-photo-count');
+            const progressBar = () => document.getElementById('gallery-progress-bar');
+            const loader      = () => document.getElementById('gallery-loader');
+            const empty       = () => document.getElementById('gallery-empty');
+
+            function _showLoader(yes) {
+                loader().style.display = yes ? 'flex' : 'none';
+            }
+            function _showEmpty(yes) {
+                empty().style.display = yes ? 'flex' : 'none';
+            }
+
+            function _buildSlides() {
+                // Remove old slides (keep nav, dots, hint, progress)
+                stage().querySelectorAll('.gallery-slide').forEach(s => s.remove());
+                dotsWrap().innerHTML = '';
+
+                photos.forEach((photo, i) => {
+                    const slide = document.createElement('div');
+                    slide.className = 'gallery-slide';
+                    slide.style.backgroundImage = `url('${photo.url}')`;
+                    stage().insertBefore(slide, document.getElementById('gallery-prev'));
+
+                    // Dot
+                    const dot = document.createElement('button');
+                    dot.className = 'gallery-dot';
+                    dot.setAttribute('aria-label', `Photo ${i + 1}`);
+                    dot.addEventListener('click', () => _goTo(i));
+                    dotsWrap().appendChild(dot);
+                });
+            }
+
+            function _updateDots() {
+                dotsWrap().querySelectorAll('.gallery-dot').forEach((d, i) => {
+                    d.classList.toggle('dot-active', i === currentIndex);
+                });
+                countEl().textContent = `${currentIndex + 1} / ${photos.length}`;
+            }
+
+            function _activateSlide(index) {
+                const slides = stage().querySelectorAll('.gallery-slide');
+                slides.forEach((s, i) => {
+                    s.classList.remove('active');
+                    // Remove all Ken Burns classes
+                    KB_CLASSES.forEach(c => s.classList.remove(c));
+                });
+
+                const active = slides[index];
+                if (!active) return;
+
+                // Pick a random Ken Burns effect
+                const kb = KB_CLASSES[index % KB_CLASSES.length];
+                // Force reflow to restart CSS animation
+                void active.offsetWidth;
+                active.classList.add('active', kb);
+
+                _updateDots();
+                _startProgressBar();
+            }
+
+            function _startProgressBar() {
+                const bar = progressBar();
+                if (!bar) return;
+                clearTimeout(progressTimer);
+                bar.style.transition = 'none';
+                bar.style.width = '100%';
+                // Trigger reflow
+                void bar.offsetWidth;
+                bar.style.transition = `width ${SLIDE_DURATION_MS}ms linear`;
+                bar.style.width = '0%';
+            }
+
+            function _goTo(index) {
+                currentIndex = (index + photos.length) % photos.length;
+                _activateSlide(currentIndex);
+                _scheduleNext();
+            }
+
+            function _scheduleNext() {
+                clearTimeout(slideTimer);
+                slideTimer = setTimeout(() => {
+                    currentIndex = (currentIndex + 1) % photos.length;
+                    _activateSlide(currentIndex);
+                    _scheduleNext();
+                }, SLIDE_DURATION_MS);
+            }
+
+            function _clearTimers() {
+                clearTimeout(slideTimer);
+                clearTimeout(autoCloseTimer);
+                clearTimeout(progressTimer);
+                slideTimer = null;
+                autoCloseTimer = null;
+                progressTimer = null;
+            }
+
+            async function open() {
+                overlay().classList.add('gallery-visible');
+                _showLoader(true);
+                _showEmpty(false);
+
+                try {
+                    const res  = await fetch('/api/photos');
+                    const data = await res.json();
+                    photos = (data.photos || []);
+                } catch (e) {
+                    console.error('Gallery: failed to fetch photos', e);
+                    photos = [];
+                }
+
+                _showLoader(false);
+
+                if (photos.length === 0) {
+                    _showEmpty(true);
+                    // Auto-close after 8 s if no photos
+                    autoCloseTimer = setTimeout(close, 8000);
+                    return;
+                }
+
+                currentIndex = 0;
+                _buildSlides();
+                _activateSlide(0);
+                _scheduleNext();
+
+                // Auto-close safety net
+                autoCloseTimer = setTimeout(close, AUTO_CLOSE_MS);
+            }
+
+            function close() {
+                _clearTimers();
+                overlay().classList.remove('gallery-visible');
+
+                // Clean up slides after fade-out
+                setTimeout(() => {
+                    stage().querySelectorAll('.gallery-slide').forEach(s => s.remove());
+                    dotsWrap().innerHTML = '';
+                    countEl().textContent = '';
+                    photos = [];
+                }, 900);
+            }
+
+            // Wire up arrow buttons
+            document.addEventListener('DOMContentLoaded', () => {
+                document.getElementById('gallery-prev').addEventListener('click', () => {
+                    _goTo(currentIndex - 1);
+                });
+                document.getElementById('gallery-next').addEventListener('click', () => {
+                    _goTo(currentIndex + 1);
+                });
+            });
+
+            return { open, close };
+        })();
+        // =====================================================
     </script>
 </body>
 

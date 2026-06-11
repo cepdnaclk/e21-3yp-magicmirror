@@ -10,11 +10,33 @@ from services.tts_service import speak_pygame
 
 
 # ================= GEMINI CLIENT =================
-gemini_client = genai.Client(
-    vertexai=True,
-    project=GEMINI_PROJECT_ID,
-    location="global"
-)
+import os
+from config.settings import GEMINI_PROJECT_ID
+
+gemini_client = None
+
+def get_gemini_client():
+    global gemini_client
+    if gemini_client is not None:
+        return gemini_client
+        
+    api_key = os.getenv("GEMINI_API_KEY")
+    if api_key:
+        # Use standard developer API Key
+        gemini_client = genai.Client(api_key=api_key)
+    else:
+        # Fallback to Vertex AI
+        try:
+            gemini_client = genai.Client(
+                vertexai=True,
+                project=GEMINI_PROJECT_ID,
+                location="global"
+            )
+        except Exception as e:
+            print(f"⚠️ [Gemini Client] Failed to initialize Vertex AI client: {e}", flush=True)
+            # Try initializing standard client as a final fallback
+            gemini_client = genai.Client()
+    return gemini_client
 
 
 # ================= AI BOT =================
@@ -72,6 +94,16 @@ class SinhalaBot:
     async def detect_wake_word(self):
         """Listen for hotwords without blocking the FastAPI server"""
         triggers = ["hey mirror", "mirror", "hai mera", "hey me", "mera"]
+
+        # Photo show triggers — exact phrases only
+        photo_show_triggers = [
+            "show my photos",
+            "show photos",
+        ]
+        # Photo hide trigger — exact phrase only
+        photo_hide_triggers = [
+            "close photos",
+        ]
         while not self.should_exit:
             try:
                 with sr.Microphone() as source:
@@ -97,6 +129,22 @@ class SinhalaBot:
                     is_playing = music_assistant.is_music_playing()
                     is_paused = music_assistant.paused
                     is_mirror_wake_word = any(trig in text for trig in triggers)
+
+                    # ── Photo commands (disabled while Mirror Man is active) ──
+                    if not self.is_active:
+                        is_photo_show = any(trig in text for trig in photo_show_triggers)
+                        is_photo_hide = any(trig in text for trig in photo_hide_triggers)
+
+                        if is_photo_show:
+                            print("📸 Photo command detected: showing gallery", flush=True)
+                            await manager.broadcast(json.dumps({"type": "show_photos"}))
+                            continue
+
+                        if is_photo_hide:
+                            print("📸 Photo command detected: hiding gallery", flush=True)
+                            await manager.broadcast(json.dumps({"type": "hide_photos"}))
+                            continue
+                    # ──────────────────────────────────────────────────────────
 
                     if is_mirror_wake_word:
                         if is_playing and not is_paused:
@@ -212,7 +260,7 @@ class SinhalaBot:
                 contents = [system_turn] + recent_history + [current_user_turn]
 
                 response = await asyncio.to_thread(
-                    gemini_client.models.generate_content,
+                    get_gemini_client().models.generate_content,
                     model=GEMINI_MODEL,
                     contents=contents
                 )
