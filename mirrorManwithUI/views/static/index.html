@@ -604,8 +604,9 @@
         //  PHOTO GALLERY CONTROLLER
         // =====================================================
         const Gallery = (() => {
-            const SLIDE_DURATION_MS  = 8000;   // ms each photo is shown
-            const AUTO_CLOSE_MS      = 90000;  // auto-close after 90 s
+            const SLIDE_DURATION_MS = 8000;   // ms each photo is shown
+            const AUTO_CLOSE_MS     = 90000;  // auto-close after 90 s
+            const MAX_PHOTOS        = 10;     // cap to protect RPi memory
             const KB_CLASSES = ['kb-zoom-in', 'kb-pan-right', 'kb-pan-left', 'kb-zoom-out'];
 
             let photos        = [];   // [{key, url}, ...]
@@ -613,8 +614,9 @@
             let slideTimer    = null;
             let autoCloseTimer = null;
             let progressTimer  = null;
+            let singleSlide   = null; // only ONE slide DOM node reused
 
-            // DOM refs (resolved once the page loads)
+            // DOM refs
             const overlay     = () => document.getElementById('photo-gallery-overlay');
             const stage       = () => document.getElementById('gallery-stage');
             const dotsWrap    = () => document.getElementById('gallery-dots');
@@ -623,25 +625,21 @@
             const loader      = () => document.getElementById('gallery-loader');
             const empty       = () => document.getElementById('gallery-empty');
 
-            function _showLoader(yes) {
-                loader().style.display = yes ? 'flex' : 'none';
-            }
-            function _showEmpty(yes) {
-                empty().style.display = yes ? 'flex' : 'none';
+            function _showLoader(yes) { loader().style.display = yes ? 'flex' : 'none'; }
+            function _showEmpty(yes)  { empty().style.display  = yes ? 'flex' : 'none'; }
+
+            // LAZY: Create only ONE slide element and swap its background per photo
+            function _ensureSlide() {
+                if (!singleSlide) {
+                    singleSlide = document.createElement('div');
+                    singleSlide.className = 'gallery-slide';
+                    stage().insertBefore(singleSlide, document.getElementById('gallery-prev'));
+                }
             }
 
-            function _buildSlides() {
-                // Remove old slides (keep nav, dots, hint, progress)
-                stage().querySelectorAll('.gallery-slide').forEach(s => s.remove());
+            function _buildDots() {
                 dotsWrap().innerHTML = '';
-
-                photos.forEach((photo, i) => {
-                    const slide = document.createElement('div');
-                    slide.className = 'gallery-slide';
-                    slide.style.backgroundImage = `url('${photo.url}')`;
-                    stage().insertBefore(slide, document.getElementById('gallery-prev'));
-
-                    // Dot
+                photos.forEach((_, i) => {
                     const dot = document.createElement('button');
                     dot.className = 'gallery-dot';
                     dot.setAttribute('aria-label', `Photo ${i + 1}`);
@@ -657,22 +655,21 @@
                 countEl().textContent = `${currentIndex + 1} / ${photos.length}`;
             }
 
+            // LAZY: Only load the current photo's URL into the single slide node
             function _activateSlide(index) {
-                const slides = stage().querySelectorAll('.gallery-slide');
-                slides.forEach((s, i) => {
-                    s.classList.remove('active');
-                    // Remove all Ken Burns classes
-                    KB_CLASSES.forEach(c => s.classList.remove(c));
-                });
+                _ensureSlide();
+                const photo = photos[index];
+                if (!photo) return;
 
-                const active = slides[index];
-                if (!active) return;
+                // Swap the background image — only THIS photo is downloaded now
+                singleSlide.style.backgroundImage = `url('${photo.url}')`;
 
-                // Pick a random Ken Burns effect
+                // Remove all Ken Burns classes, force reflow, re-add one
+                KB_CLASSES.forEach(c => singleSlide.classList.remove(c));
+                singleSlide.classList.remove('active');
+                void singleSlide.offsetWidth; // force reflow to restart CSS animation
                 const kb = KB_CLASSES[index % KB_CLASSES.length];
-                // Force reflow to restart CSS animation
-                void active.offsetWidth;
-                active.classList.add('active', kb);
+                singleSlide.classList.add('active', kb);
 
                 _updateDots();
                 _startProgressBar();
@@ -684,7 +681,6 @@
                 clearTimeout(progressTimer);
                 bar.style.transition = 'none';
                 bar.style.width = '100%';
-                // Trigger reflow
                 void bar.offsetWidth;
                 bar.style.transition = `width ${SLIDE_DURATION_MS}ms linear`;
                 bar.style.width = '0%';
@@ -722,7 +718,8 @@
                 try {
                     const res  = await fetch('/api/photos');
                     const data = await res.json();
-                    photos = (data.photos || []);
+                    // Cap to MAX_PHOTOS to protect RPi from memory overload
+                    photos = (data.photos || []).slice(0, MAX_PHOTOS);
                 } catch (e) {
                     console.error('Gallery: failed to fetch photos', e);
                     photos = [];
@@ -732,17 +729,15 @@
 
                 if (photos.length === 0) {
                     _showEmpty(true);
-                    // Auto-close after 8 s if no photos
                     autoCloseTimer = setTimeout(close, 8000);
                     return;
                 }
 
                 currentIndex = 0;
-                _buildSlides();
-                _activateSlide(0);
+                _buildDots();
+                _activateSlide(0); // only loads photo[0] — lazy!
                 _scheduleNext();
 
-                // Auto-close safety net
                 autoCloseTimer = setTimeout(close, AUTO_CLOSE_MS);
             }
 
@@ -750,23 +745,20 @@
                 _clearTimers();
                 overlay().classList.remove('gallery-visible');
 
-                // Clean up slides after fade-out
                 setTimeout(() => {
-                    stage().querySelectorAll('.gallery-slide').forEach(s => s.remove());
+                    if (singleSlide) {
+                        singleSlide.remove();
+                        singleSlide = null;
+                    }
                     dotsWrap().innerHTML = '';
                     countEl().textContent = '';
                     photos = [];
                 }, 900);
             }
 
-            // Wire up arrow buttons
             document.addEventListener('DOMContentLoaded', () => {
-                document.getElementById('gallery-prev').addEventListener('click', () => {
-                    _goTo(currentIndex - 1);
-                });
-                document.getElementById('gallery-next').addEventListener('click', () => {
-                    _goTo(currentIndex + 1);
-                });
+                document.getElementById('gallery-prev').addEventListener('click', () => _goTo(currentIndex - 1));
+                document.getElementById('gallery-next').addEventListener('click', () => _goTo(currentIndex + 1));
             });
 
             return { open, close };

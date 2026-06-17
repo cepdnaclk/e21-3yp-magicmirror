@@ -225,7 +225,7 @@ class SinhalaBot:
                     print("?? Shutdown command received.")
                     await manager.broadcast(json.dumps({"type": "video", "state": "talking"}))
                     self.is_speaking = True
-                    await asyncio.to_thread(self.speak, "ස්තූතියි, නැවත හමුවෙමු.")
+                    await asyncio.to_thread(self.speak, "Thank you, see you again!")
                     self.is_speaking = False
                     self.is_active = False
                     break
@@ -320,7 +320,7 @@ class SinhalaBot:
                 await manager.broadcast(json.dumps({"type": "video", "state": "talking"}))
 
                 # 2. Mirror speaks greeting (logic waits here until audio finishes)
-                await asyncio.to_thread(self.speak, "ආයුබෝවන්! මම කෙසේද උදව් කරන්නේ?")
+                await asyncio.to_thread(self.speak, "Hello! How can I help you?")
 
                 # 3. Back to idle before starting conversation
                 await manager.broadcast(json.dumps({"type": "video", "state": "idle"}))
