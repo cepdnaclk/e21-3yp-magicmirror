@@ -1,0 +1,27 @@
+﻿# Python cache
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# Virtual environments
+.venv/
+venv/
+
+# Logs
+*.log
+
+# Ignore all PNG files
+*.png
+
+# FFmpeg executables
+/mirrorManwithUI/ffmpeg.exe
+/mirrorManwithUI/ffplay.exe
+
+# Architecture files
+/ACTIVITY_DIAGRAMS.md
+/ARCHITECTURE.md
+/architecture.html
+
+# Old project copy
+/mirrorManwithUI_old/
