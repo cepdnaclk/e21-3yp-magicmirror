@@ -147,7 +147,7 @@
         setInterval(updateTime, 1000);
         updateTime();
 
-        const socket = new WebSocket('ws://' + window.location.host + '/ws');
+        let socket = null;
 
         function addScheduleItem(item) {
             const list = document.getElementById('calendar-list');
@@ -293,7 +293,26 @@
             }
         }
 
-        socket.onmessage = (event) => {
+        function initWebSocket() {
+            const socketUrl = (window.location.protocol === 'https:' ? 'wss://' : 'ws://') + window.location.host + '/ws';
+            socket = new WebSocket(socketUrl);
+
+            socket.onopen = () => {
+                console.log("WebSocket connected successfully.");
+                updateMirrorData();
+            };
+
+            socket.onclose = () => {
+                console.warn("WebSocket disconnected. Retrying connection in 3 seconds...");
+                setTimeout(initWebSocket, 3000);
+            };
+
+            socket.onerror = (err) => {
+                console.error("WebSocket error:", err);
+                socket.close();
+            };
+
+            socket.onmessage = (event) => {
             const v = document.getElementById('mirror-video');
             const wrapper = document.getElementById('mirror-wrapper');
             const uiLayer = document.getElementById('ui-layer');
@@ -526,7 +545,9 @@
                 return;
             }
 
-        };
+            };
+        }
+        initWebSocket();
 
         async function updateMirrorData() {
             try {
