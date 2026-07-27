@@ -276,6 +276,14 @@
             }
         }
 
+        function updatePresenceDebug(msg) {
+            const debugEl = document.getElementById('presence-debug');
+            if (debugEl) {
+                debugEl.innerText = "Sensor Status: " + msg;
+            }
+            console.log("[Presence Debug] " + msg);
+        }
+
         socket.onmessage = (event) => {
             const v = document.getElementById('mirror-video');
             const wrapper = document.getElementById('mirror-wrapper');
@@ -388,11 +396,18 @@
                         absenceTimer = null;
                     }
 
+                    if (userIsPresent) {
+                        updatePresenceDebug("PRESENT (Active)");
+                    } else {
+                        updatePresenceDebug("PRESENT (Verifying... 5s)");
+                    }
+
                     // If user is not yet present and we haven't scheduled a presence timer, start one
                     if (!userIsPresent && !presenceTimer) {
                         presenceTimer = setTimeout(() => {
                             userIsPresent = true;
                             presenceTimer = null;
+                            updatePresenceDebug("PRESENT (Active)");
 
                             // Run wakeup actions
                             if (activeMessage && activeMsgState === 'FULLSCREEN') {
@@ -418,11 +433,18 @@
                         presenceTimer = null;
                     }
 
+                    if (userIsPresent) {
+                        updatePresenceDebug("ABSENT (Disconnecting... 15s)");
+                    } else {
+                        updatePresenceDebug("ABSENT (Idle)");
+                    }
+
                     // If user is currently present and we haven't scheduled an absence timer, start one
                     if (userIsPresent && !absenceTimer) {
                         absenceTimer = setTimeout(() => {
                             userIsPresent = false;
                             absenceTimer = null;
+                            updatePresenceDebug("ABSENT (Idle)");
 
                             // Run sleep actions
                             if (activeMessage && activeMsgState === 'NOTIFICATION_BOX' && userHasBeenPresentWithBoxMsg) {
@@ -799,6 +821,9 @@
         })();
         // =====================================================
     </script>
+    <div id="presence-debug" style="position: absolute; bottom: 15px; right: 20px; font-family: monospace; font-size: 12px; color: rgba(255,255,255,0.4); z-index: 9999; background: rgba(0,0,0,0.5); padding: 5px 10px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.1); pointer-events: none;">
+        Sensor Status: Initializing...
+    </div>
 </body>
 
 </html>
