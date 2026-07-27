@@ -31,14 +31,19 @@ while True:
         if not raw_line:
             continue
 
-        # Check if the line contains our keywords anywhere within it
-        if "PRESENT" in raw_line:
-            print(">>> Event detected: PRESENT", flush=True)
+        # Check if the line contains our keywords anywhere within it (case-insensitive)
+        line_upper = raw_line.upper()
+        if "PRESENT" in line_upper:
+            print(f">>> Event detected: PRESENT (Raw: '{raw_line}')", flush=True)
             requests.get(API_URL + "present", timeout=2)
 
-        elif "ABSENT" in raw_line:
-            print(">>> Event detected: ABSENT", flush=True)
+        elif "ABSENT" in line_upper:
+            print(f">>> Event detected: ABSENT (Raw: '{raw_line}')", flush=True)
             requests.get(API_URL + "absent", timeout=2)
+            
+        else:
+            # Print raw line for diagnostics
+            print(f"[Serial Debug] Raw line: '{raw_line}'", flush=True)
 
     except serial.SerialException as se:
         print(f"⚠️ Serial connection lost: {se}. Reconnecting...", flush=True)
