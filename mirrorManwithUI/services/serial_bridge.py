@@ -24,19 +24,39 @@ BAUD = SERIAL_BAUD
 
 def connect_serial():
     while True:
-        print(f"Connecting to ESP32 via Serial on {PORT}...", flush=True)
+        print(f"Connecting to ESP32 via Serial on {PORT} at {BAUD} baud...", flush=True)
         try:
-            ser = serial.Serial(PORT, BAUD, timeout=0.1)
+            ser = serial.Serial(PORT, BAUD, timeout=1)
+            # Wait for ESP32 hardware reset + bootloader to complete.
+            # The first ~2s of data is ROM bootloader garbage at a different baud rate.
             time.sleep(2)
-            print("Bridge Active. Parsing distance readings...", flush=True)
+
+            # Flush all data that arrived during boot (bootloader junk)
+            ser.reset_input_buffer()
+            print("Bridge Active. Flushing boot noise... Waiting for Distance readings.", flush=True)
+
+            # Read and discard lines for 1 more second to clear any remaining boot output
+            flush_deadline = time.time() + 1.0
+            while time.time() < flush_deadline:
+                ser.readline()
+
+            print("Bridge ready. Parsing distance readings...", flush=True)
+
+            # Diagnostic: print the first 3 actual lines received so you can verify format
+            print("[Serial] Sampling first 3 lines from ESP32:", flush=True)
+            for i in range(3):
+                sample = ser.readline().decode('utf-8', errors='ignore').strip()
+                print(f"  Line {i+1}: '{sample}'", flush=True)
+
             return ser
         except Exception as e:
             print(f"Connection Failed: {e}. Retrying in 5 seconds...", flush=True)
             time.sleep(5)
 
 
+
 def parse_distance(line: str):
-    """Extract distance in cm from 'Distance: X.XX cm' or return None for NO_ECHO."""
+    """Extract distance in cm from various firmware formats, or return None for NO_ECHO."""
     line_upper = line.upper()
 
     # Already a PRESENT/ABSENT string from older firmware
@@ -46,11 +66,21 @@ def parse_distance(line: str):
         return "ABSENT"
 
     # NO_ECHO — sensor got no return signal (nothing in range)
-    if "NO_ECHO" in line_upper:
+    if "NO_ECHO" in line_upper or "OUT OF RANGE" in line_upper:
         return None  # treat as absent
 
-    # Parse "Distance: 53.25 cm"
-    match = re.search(r"Distance:\s*([\d.]+)", line, re.IGNORECASE)
+    # Parse "Distance: 53.25 cm" or "Dist: 53.25" or "D: 53.25cm"
+    match = re.search(r"dist(?:ance)?[\s:]+([0-9]+(?:\.[0-9]+)?)", line, re.IGNORECASE)
+    if match:
+        return float(match.group(1))
+
+    # Bare number with optional "cm" unit — e.g. "53.25" or "53.25 cm"
+    match = re.search(r"^([0-9]+(?:\.[0-9]+)?)\s*(?:cm)?$", line.strip(), re.IGNORECASE)
+    if match:
+        return float(match.group(1))
+
+    # Number followed by "cm" anywhere in line — e.g. "Reading: 53.25cm"
+    match = re.search(r"([0-9]+(?:\.[0-9]+)?)\s*cm", line, re.IGNORECASE)
     if match:
         return float(match.group(1))
 
@@ -63,6 +93,7 @@ current_state = None      # "present" | "absent" | None (unknown)
 pending_state = None      # state candidate being debounced
 pending_since = None      # timestamp (float) when pending state began
 last_logged_second = -1   # throttle candidate log output
+last_unrecognized_print_time = 0  # throttle unrecognized line printouts
 
 while True:
     try:
@@ -79,7 +110,11 @@ while True:
         elif dist == "ABSENT" or dist is None:
             new_state = "absent"
         elif dist == "UNKNOWN":
-            print(f"[Serial Debug] Unrecognised line: '{raw_line}'", flush=True)
+            current_time = time.time()
+            if current_time - last_unrecognized_print_time >= 5.0:
+                truncated_line = raw_line[:80] + ("..." if len(raw_line) > 80 else "")
+                print(f"[Serial Debug] Unrecognised line (throttled): '{truncated_line}'", flush=True)
+                last_unrecognized_print_time = current_time
             continue
         else:
             # Numeric distance reading
