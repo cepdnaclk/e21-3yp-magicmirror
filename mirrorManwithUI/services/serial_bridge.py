@@ -26,6 +26,8 @@ while True:
         if not raw_line:
             continue
 
+        print(f"[SERIAL RAW] {raw_line}", flush=True)
+
         # Check if the line contains our keywords anywhere within it
         if "PRESENT" in raw_line:
             print(">>> Event detected: PRESENT")
