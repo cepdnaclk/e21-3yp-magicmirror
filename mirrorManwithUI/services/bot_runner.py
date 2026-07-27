@@ -169,10 +169,6 @@ class RemoteSinhalaBot(SinhalaBot):
             # Keep presence state synced
             _real_app_state_module.is_present = _remote_state.is_present
 
-            if not _real_app_state_module.is_present:
-                await asyncio.sleep(1)
-                continue
-
             await self.detect_wake_word()
             if self.is_active:
                 await _remote_mgr.broadcast(
