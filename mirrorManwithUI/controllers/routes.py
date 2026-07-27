@@ -76,10 +76,6 @@ def register_routes(app, bot, manager):
     @app.websocket("/ws")
     async def websocket_endpoint(websocket: WebSocket):
         await manager.connect(websocket)
-        
-        # MOCK PRESENCE SENSOR: Automatically tell the UI that someone is present
-        # since we don't have the physical sensor running via serial_bridge.py
-        await websocket.send_text(json.dumps({"type": "presence", "value": "present"}))
 
         if bot.is_active:
             await websocket.send_text("show_mirror")
