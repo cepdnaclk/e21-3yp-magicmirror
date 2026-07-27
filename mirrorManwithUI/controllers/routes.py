@@ -15,6 +15,7 @@ def register_routes(app, bot, manager):
     async def presence_trigger(status: str):
         # Receives 'present' or 'absent' from the Serial Python script
         # and broadcasts it to the Web UI via WebSockets.
+        print(f"[PRESENCE SENSOR] Event received from serial: {status.upper()}", flush=True)
         await manager.broadcast(json.dumps({"type": "presence", "value": status}))
         return {"status": "success", "received": status}
 

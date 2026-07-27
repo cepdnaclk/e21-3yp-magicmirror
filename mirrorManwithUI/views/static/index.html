@@ -277,10 +277,6 @@
         }
 
         function updatePresenceDebug(msg) {
-            const debugEl = document.getElementById('presence-debug');
-            if (debugEl) {
-                debugEl.innerText = "Sensor Status: " + msg;
-            }
             console.log("[Presence Debug] " + msg);
         }
 
@@ -821,9 +817,6 @@
         })();
         // =====================================================
     </script>
-    <div id="presence-debug" style="position: absolute; bottom: 15px; right: 20px; font-family: monospace; font-size: 12px; color: rgba(255,255,255,0.4); z-index: 9999; background: rgba(0,0,0,0.5); padding: 5px 10px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.1); pointer-events: none;">
-        Sensor Status: Initializing...
-    </div>
 </body>
 
 </html>
