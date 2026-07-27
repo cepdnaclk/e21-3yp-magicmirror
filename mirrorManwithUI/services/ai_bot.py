@@ -1,4 +1,5 @@
 import asyncio
+import os
 import speech_recognition as sr
 import json
 from google import genai
@@ -51,6 +52,12 @@ class SinhalaBot:
         # Cleared at the start of every new wake-word activation.
         self.conversation_history: list[types.Content] = []
         self.MAX_HISTORY_TURNS = 10  # Keep last 10 exchanges (20 messages)
+
+        # Microphone device index — set MIC_DEVICE_INDEX env var to override.
+        # Run 'python test_mic.py' to find the correct index for your hardware.
+        _env_idx = os.getenv("MIC_DEVICE_INDEX", "").strip()
+        self.mic_device_index = int(_env_idx) if _env_idx.isdigit() else None
+        print(f"[Bot] Mic device index: {self.mic_device_index} (None = system default)", flush=True)
 
     async def _recognize_best(self, audio_data):
         """Run English and Sinhala recognition in parallel and return the best result.
@@ -114,7 +121,8 @@ class SinhalaBot:
                 await asyncio.sleep(1)
                 continue
             try:
-                with sr.Microphone() as source:
+                print(f"[Bot] Opening mic (device_index={self.mic_device_index})...", flush=True)
+                with sr.Microphone(device_index=self.mic_device_index) as source:
                     self.recognizer.adjust_for_ambient_noise(source, duration=0.5)
                     print("🎤 Listening for 'Hey mirror'...", flush=True)
                     # FIXED: Added to_thread so it doesn't block the AWS S3 watcher!
