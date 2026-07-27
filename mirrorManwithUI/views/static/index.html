@@ -203,6 +203,9 @@
         let activeMsgTimer = null;
         let userHasBeenPresentWithBoxMsg = false;
 
+        let presenceTimer = null;
+        let absenceTimer = null;
+
         function clearActiveMsgTimer() {
             if (activeMsgTimer) {
                 clearTimeout(activeMsgTimer);
@@ -377,32 +380,63 @@
 
             if (payload && payload.type === 'presence') {
                 const isPresent = payload.value === 'present';
-                userIsPresent = isPresent;
 
                 if (isPresent) {
-                    if (activeMessage && activeMsgState === 'FULLSCREEN') {
-                        // Reset timer to 10 seconds since they just appeared
-                        clearActiveMsgTimer();
-                        displayFullscreen(activeMessage, 10);
-                        activeMsgTimer = setTimeout(() => {
-                            hideFullscreen();
-                            activeMessage = null;
-                            activeMsgState = null;
+                    // Clear the absence timer if it was running (user is detected again)
+                    if (absenceTimer) {
+                        clearTimeout(absenceTimer);
+                        absenceTimer = null;
+                    }
+
+                    // If user is not yet present and we haven't scheduled a presence timer, start one
+                    if (!userIsPresent && !presenceTimer) {
+                        presenceTimer = setTimeout(() => {
+                            userIsPresent = true;
+                            presenceTimer = null;
+
+                            // Run wakeup actions
+                            if (activeMessage && activeMsgState === 'FULLSCREEN') {
+                                clearActiveMsgTimer();
+                                displayFullscreen(activeMessage, 10);
+                                activeMsgTimer = setTimeout(() => {
+                                    hideFullscreen();
+                                    activeMessage = null;
+                                    activeMsgState = null;
+                                    updateBlackoutState();
+                                }, 10000);
+                            } else if (activeMessage && activeMsgState === 'NOTIFICATION_BOX') {
+                                userHasBeenPresentWithBoxMsg = true;
+                            }
+
                             updateBlackoutState();
-                        }, 10000);
-                    } else if (activeMessage && activeMsgState === 'NOTIFICATION_BOX') {
-                        userHasBeenPresentWithBoxMsg = true;
+                        }, 5000); // 5 seconds wait
                     }
                 } else {
-                    if (activeMessage && activeMsgState === 'NOTIFICATION_BOX' && userHasBeenPresentWithBoxMsg) {
-                        clearNotificationBox();
-                        activeMessage = null;
-                        activeMsgState = null;
-                        userHasBeenPresentWithBoxMsg = false;
+                    // Clear the presence timer if it was running (user left before 5s was up)
+                    if (presenceTimer) {
+                        clearTimeout(presenceTimer);
+                        presenceTimer = null;
+                    }
+
+                    // If user is currently present and we haven't scheduled an absence timer, start one
+                    if (userIsPresent && !absenceTimer) {
+                        absenceTimer = setTimeout(() => {
+                            userIsPresent = false;
+                            absenceTimer = null;
+
+                            // Run sleep actions
+                            if (activeMessage && activeMsgState === 'NOTIFICATION_BOX' && userHasBeenPresentWithBoxMsg) {
+                                clearNotificationBox();
+                                activeMessage = null;
+                                activeMsgState = null;
+                                userHasBeenPresentWithBoxMsg = false;
+                            }
+
+                            updateBlackoutState();
+                        }, 15000); // 15 seconds wait
                     }
                 }
 
-                updateBlackoutState();
                 return;
             }
 
