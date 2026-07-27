@@ -62,6 +62,7 @@ ser = connect_serial()
 current_state = None      # "present" | "absent" | None (unknown)
 pending_state = None      # state candidate being debounced
 pending_since = None      # timestamp (float) when pending state began
+last_logged_second = -1   # throttle candidate log output
 
 while True:
     try:
@@ -86,13 +87,17 @@ while True:
                 new_state = "present"
             else:
                 new_state = "absent"
-            print(f"[Serial] {dist:.1f} cm → {new_state.upper()}", flush=True)
+            
+            # Only print when new state candidate differs from current confirmed state
+            if new_state != current_state:
+                print(f"[Serial] {dist:.1f} cm → {new_state.upper()}", flush=True)
 
         # ── Time-based debounce logic ──────────────────────
         if new_state != current_state:
             if new_state != pending_state:
                 pending_state = new_state
                 pending_since = time.time()
+                last_logged_second = -1
                 print(f"[Serial] State candidate: {new_state.upper()} (waiting for confirmation...)", flush=True)
             else:
                 elapsed = time.time() - pending_since
@@ -101,17 +106,22 @@ while True:
                     current_state = pending_state
                     pending_state = None
                     pending_since = None
+                    last_logged_second = -1
                     print(f">>> Presence state changed: {current_state.upper()}", flush=True)
                     requests.get(API_URL + current_state, timeout=2)
                 else:
-                    # Log state candidate progress periodically
-                    print(f"[Serial] {new_state.upper()} candidate: {elapsed:.1f}/{required:.1f}s elapsed", flush=True)
+                    # Log state candidate progress once per second
+                    elapsed_sec = int(elapsed)
+                    if elapsed_sec != last_logged_second:
+                        print(f"[Serial] {new_state.upper()} candidate: {elapsed_sec}/{int(required)}s elapsed", flush=True)
+                        last_logged_second = elapsed_sec
         else:
             # New reading matches current state, clear pending transitions
             if pending_state is not None:
                 print(f"[Serial] Candidate {pending_state.upper()} cleared. Stabilised at: {current_state.upper()}", flush=True)
                 pending_state = None
                 pending_since = None
+                last_logged_second = -1
 
     except serial.SerialException as se:
         print(f"⚠️ Serial connection lost: {se}. Reconnecting...", flush=True)
@@ -123,6 +133,7 @@ while True:
         current_state = None
         pending_state = None
         pending_since = None
+        last_logged_second = -1
     except Exception as e:
         pass
 

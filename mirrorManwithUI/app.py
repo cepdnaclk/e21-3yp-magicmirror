@@ -12,6 +12,16 @@ from fastapi.staticfiles import StaticFiles
 # Import config first (triggers load_dotenv and env setup)
 from config import settings
 
+import logging
+
+class EndpointFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        msg = record.getMessage()
+        return "/api/presence/status" not in msg and "/api/bot/status" not in msg
+
+# Filter out status polling requests from console output
+logging.getLogger("uvicorn.access").addFilter(EndpointFilter())
+
 from services.weather_service import get_current_weather
 
 # ================= WINDOWS FIX =================
