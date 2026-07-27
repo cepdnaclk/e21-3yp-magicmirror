@@ -6,7 +6,7 @@ from google import genai
 from google.genai import types
 
 from models import app_state
-from config.settings import CUSTOM_PROMPT, GEMINI_MODEL, GEMINI_PROJECT_ID
+from config.settings import CUSTOM_PROMPT, GEMINI_MODEL, GEMINI_PROJECT_ID, ALSA_MIC_CARD
 from controllers.websocket_manager import manager
 from services.tts_service import speak_pygame
 
@@ -54,10 +54,49 @@ class SinhalaBot:
         self.MAX_HISTORY_TURNS = 10  # Keep last 10 exchanges (20 messages)
 
         # Microphone device index — set MIC_DEVICE_INDEX env var to override.
-        # Run 'python test_mic.py' to find the correct index for your hardware.
+        # Otherwise we auto-resolve it based on the configured ALSA_MIC_CARD.
         _env_idx = os.getenv("MIC_DEVICE_INDEX", "").strip()
-        self.mic_device_index = int(_env_idx) if _env_idx.isdigit() else None
-        print(f"[Bot] Mic device index: {self.mic_device_index} (None = system default)", flush=True)
+        if _env_idx.isdigit():
+            self.mic_device_index = int(_env_idx)
+        else:
+            self.mic_device_index = self._resolve_mic_index(ALSA_MIC_CARD)
+        print(f"[Bot] Mic device index: {self.mic_device_index} (Resolved from ALSA_MIC_CARD: '{ALSA_MIC_CARD}')", flush=True)
+
+    def _resolve_mic_index(self, card_str: str):
+        """Resolves a card string like 'plughw:2,0' or 'hw:2' to PyAudio device index."""
+        import re
+        if not card_str:
+            return None
+        match = re.search(r'(?:plughw|hw):(\d+),(\d+)', card_str)
+        if not match:
+            # Fall back to checking if the card string itself is just a number
+            match = re.search(r'(?:plughw|hw):(\d+)', card_str)
+        
+        card_idx = match.group(1) if match else None
+        
+        try:
+            mics = sr.Microphone.list_microphone_names()
+            # 1. Direct match search
+            for idx, name in enumerate(mics):
+                name_lower = name.lower()
+                # e.g. "hw:2,0" or "plughw:2,0"
+                if card_str.lower() in name_lower:
+                    return idx
+                    
+            # 2. Card number search (e.g. searching for card 2 or card_idx=2)
+            if card_idx is not None:
+                for idx, name in enumerate(mics):
+                    name_lower = name.lower()
+                    if f"hw:{card_idx}" in name_lower or f"card={card_idx}" in name_lower:
+                        return idx
+                        
+            # 3. Fallback: Search for any USB microphone if we can't find specific ALSA card
+            for idx, name in enumerate(mics):
+                if "usb" in name.lower():
+                    return idx
+        except Exception:
+            pass
+        return None
 
     async def _recognize_best(self, audio_data):
         """Run English and Sinhala recognition in parallel and return the best result.
@@ -117,17 +156,13 @@ class SinhalaBot:
             "close photos",
         ]
         while not self.should_exit:
-            if not app_state.is_present:
-                await asyncio.sleep(1)
-                continue
+            # Mic always listens — presence only gates which commands activate.
             try:
-                print(f"[Bot] Opening mic (device_index={self.mic_device_index})...", flush=True)
                 with sr.Microphone(device_index=self.mic_device_index) as source:
                     self.recognizer.adjust_for_ambient_noise(source, duration=0.5)
-                    print("🎤 Listening for 'Hey mirror'...", flush=True)
-                    # FIXED: Added to_thread so it doesn't block the AWS S3 watcher!
+                    print("🎤 Listening...", flush=True)
                     audio = await asyncio.to_thread(
-                        self.recognizer.listen, source, timeout=2.0, phrase_time_limit=3.0
+                        self.recognizer.listen, source, timeout=3.0, phrase_time_limit=4.0
                     )
                 try:
                     is_sinhala_detected = False
@@ -138,49 +173,48 @@ class SinhalaBot:
                         text = await asyncio.to_thread(self.recognizer.recognize_google, audio, language="si-LK")
                         text = text.lower()
                         is_sinhala_detected = True
-                        
+
                     print(f"[Bot] Detected: '{text}'", flush=True)
-                    
+
                     from services import music_assistant
                     is_playing = music_assistant.is_music_playing()
                     is_paused = music_assistant.paused
                     is_mirror_wake_word = any(trig in text for trig in triggers)
 
-                    # ── Photo commands (disabled while Mirror Man is active) ──
+                    # ── Photo commands (only when Mirror Man is NOT active) ──
                     if not self.is_active:
                         is_photo_show = any(trig in text for trig in photo_show_triggers)
                         is_photo_hide = any(trig in text for trig in photo_hide_triggers)
-
                         if is_photo_show:
-                            print("📸 Photo command detected: showing gallery", flush=True)
+                            print("📸 Photo command: showing gallery", flush=True)
                             await manager.broadcast(json.dumps({"type": "show_photos"}))
                             continue
-
                         if is_photo_hide:
-                            print("📸 Photo command detected: hiding gallery", flush=True)
+                            print("📸 Photo command: hiding gallery", flush=True)
                             await manager.broadcast(json.dumps({"type": "hide_photos"}))
                             continue
-                    # ──────────────────────────────────────────────────────────
 
+                    # ── Mirror Man wake word — only activates when someone is present ──
                     if is_mirror_wake_word:
+                        if not app_state.is_present:
+                            print("[Bot] Wake word heard but no one present — ignoring.", flush=True)
+                            continue
                         if is_playing and not is_paused:
-                            print("?? Music is playing, ignoring Mirror Man wake word.")
+                            print("[Bot] Music is playing, ignoring wake word.", flush=True)
                             continue
                         elif is_playing and is_paused:
-                            print("?? Music is paused. Asking user to stop music first.")
-                            await asyncio.to_thread(self.speak, "Please stop the music to get back to Mirror Man.")
+                            await asyncio.to_thread(self.speak, "Please stop the music to talk to me.")
                             continue
                         else:
-                            print(f"? Wake word detected! Activating mirror...")
-                            # Show mirror man (hide dashboard, show idle.mp4)
+                            print("✅ Wake word detected! Activating mirror...", flush=True)
                             await manager.broadcast(json.dumps({"type": "mirror_show", "status": "active"}))
                             self.is_active = True
                             return
-                            
-                    # If not a mirror wake word, check for music command
+
+                    # ── Music commands — work regardless of presence ──
                     action, param, is_sinhala = music_assistant.parse_command(text, is_sinhala_detected)
                     if action != 'ignore':
-                        print(f"?? Music Command Detected: {action} ({param})")
+                        print(f"[Bot] Music command: {action} ({param})", flush=True)
                         if action == 'play':
                             await music_assistant.play_youtube_music(param, is_sinhala)
                         elif action == 'stop':
@@ -197,22 +231,19 @@ class SinhalaBot:
                 except sr.RequestError as e:
                     print(f"[Bot] ⚠️ Google Speech API error: {e}", flush=True)
             except sr.WaitTimeoutError:
-                pass  # Timed out waiting for speech — normal
+                pass  # Silence timeout — normal, just loop back
             except Exception as e:
-                print(f"[Bot] ⚠️ Microphone/detection error: {e}", flush=True)
+                print(f"[Bot] ⚠️ Mic error: {e}", flush=True)
                 await asyncio.sleep(0.5)
 
     async def run_session(self):
         """Continuous Conversation Session"""
-        print("?? Conversation Active. Say 'Goodbye' or 'Stop' to exit.")
+        print("💬 Conversation Active. Say 'Goodbye' or 'Stop' to exit.", flush=True)
         consecutive_errors = 0
-        shutdown_keywords = ["goodbye", "stop", "shut down", "exit", "bye", "?????????"]
+        shutdown_keywords = ["goodbye", "stop", "shut down", "exit", "bye", "ආයුබෝවන්"]
 
         while self.is_active:
-            if not app_state.is_present:
-                self.is_active = False
-                break
-            print("\n?? Listening...")
+            print("\n👂 Listening...", flush=True)
             # Show idle.mp4 while waiting for user speech
             await manager.broadcast(json.dumps({"type": "video", "state": "idle"}))
 
@@ -222,16 +253,16 @@ class SinhalaBot:
                     await asyncio.sleep(0.1)
                     continue
 
-                with sr.Microphone() as source:
+                with sr.Microphone(device_index=self.mic_device_index) as source:
                     self.recognizer.adjust_for_ambient_noise(source, duration=0.2)
                     audio_data = await asyncio.to_thread(
                         self.recognizer.listen, source, timeout=7.0, phrase_time_limit=15.0
                     )
             except sr.WaitTimeoutError:
-                print("? Listening timed out. Restarting loop...")
+                print("⏱ Listening timed out — looping back...", flush=True)
                 continue
             except Exception as e:
-                print(f"? Microphone error: {e}")
+                print(f"⚠️ Microphone error: {e}", flush=True)
                 consecutive_errors += 1
                 if consecutive_errors >= 2:
                     self.is_active = False

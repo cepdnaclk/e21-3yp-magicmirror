@@ -4,7 +4,10 @@ import time
 import requests
 import sys
 
-from config.settings import SERIAL_PORT, SERIAL_BAUD, API_URL, PRESENCE_MIN_CM, PRESENCE_MAX_CM
+from config.settings import (
+    SERIAL_PORT, SERIAL_BAUD, API_URL, PRESENCE_MIN_CM, PRESENCE_MAX_CM,
+    PRESENCE_DELAY_SECONDS, ABSENCE_DELAY_SECONDS
+)
 
 # Configuration
 PORT = SERIAL_PORT
@@ -14,9 +17,8 @@ BAUD = SERIAL_BAUD
 # These are loaded from config/settings.py (and can be overridden via .env)
 # PRESENCE_MIN_CM: readings closer than this are sensor noise (ignored)
 # PRESENCE_MAX_CM: readings beyond this = "absent" (default 150 cm)
-
-# Debounce: require N consecutive readings in agreement before flipping state
-DEBOUNCE_COUNT = 3
+# PRESENCE_DELAY_SECONDS: time required to trigger "present" (default 5s)
+# ABSENCE_DELAY_SECONDS: time required to trigger "absent" (default 15s)
 # ────────────────────────────────────────────────────────────────────────────
 
 
@@ -59,7 +61,7 @@ ser = connect_serial()
 
 current_state = None      # "present" | "absent" | None (unknown)
 pending_state = None      # state candidate being debounced
-pending_count = 0         # how many consecutive readings agree
+pending_since = None      # timestamp (float) when pending state began
 
 while True:
     try:
@@ -86,17 +88,30 @@ while True:
                 new_state = "absent"
             print(f"[Serial] {dist:.1f} cm → {new_state.upper()}", flush=True)
 
-        # ── Debounce ──────────────────────────────────────
-        if new_state == pending_state:
-            pending_count += 1
+        # ── Time-based debounce logic ──────────────────────
+        if new_state != current_state:
+            if new_state != pending_state:
+                pending_state = new_state
+                pending_since = time.time()
+                print(f"[Serial] State candidate: {new_state.upper()} (waiting for confirmation...)", flush=True)
+            else:
+                elapsed = time.time() - pending_since
+                required = PRESENCE_DELAY_SECONDS if pending_state == "present" else ABSENCE_DELAY_SECONDS
+                if elapsed >= required:
+                    current_state = pending_state
+                    pending_state = None
+                    pending_since = None
+                    print(f">>> Presence state changed: {current_state.upper()}", flush=True)
+                    requests.get(API_URL + current_state, timeout=2)
+                else:
+                    # Log state candidate progress periodically
+                    print(f"[Serial] {new_state.upper()} candidate: {elapsed:.1f}/{required:.1f}s elapsed", flush=True)
         else:
-            pending_state = new_state
-            pending_count = 1
-
-        if pending_count >= DEBOUNCE_COUNT and new_state != current_state:
-            current_state = new_state
-            print(f">>> Presence state changed: {current_state.upper()}", flush=True)
-            requests.get(API_URL + current_state, timeout=2)
+            # New reading matches current state, clear pending transitions
+            if pending_state is not None:
+                print(f"[Serial] Candidate {pending_state.upper()} cleared. Stabilised at: {current_state.upper()}", flush=True)
+                pending_state = None
+                pending_since = None
 
     except serial.SerialException as se:
         print(f"⚠️ Serial connection lost: {se}. Reconnecting...", flush=True)
@@ -107,6 +122,7 @@ while True:
         ser = connect_serial()
         current_state = None
         pending_state = None
-        pending_count = 0
+        pending_since = None
     except Exception as e:
         pass
+

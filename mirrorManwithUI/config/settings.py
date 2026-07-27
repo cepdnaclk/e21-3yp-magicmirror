@@ -58,3 +58,8 @@ API_URL = "http://127.0.0.1:8000/api/presence/"
 # A reading between PRESENCE_MIN_CM and PRESENCE_MAX_CM is treated as PRESENT.
 PRESENCE_MIN_CM = float(os.getenv("PRESENCE_MIN_CM", "10"))
 PRESENCE_MAX_CM = float(os.getenv("PRESENCE_MAX_CM", "150"))
+
+# Time delay before toggling presence state (seconds)
+PRESENCE_DELAY_SECONDS = float(os.getenv("PRESENCE_DELAY_SECONDS", "5.0"))
+ABSENCE_DELAY_SECONDS = float(os.getenv("ABSENCE_DELAY_SECONDS", "15.0"))
+
