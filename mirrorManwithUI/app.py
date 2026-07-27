@@ -1,7 +1,6 @@
 import sys
 import asyncio
 import os
-import pyaudio
 import uvicorn
 import webbrowser
 import time
@@ -38,7 +37,6 @@ if os.path.exists(static_dir):
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 # ================= INITIALIZE BOT =================
-pya = pyaudio.PyAudio()
 bot = SinhalaBot()
 
 # ================= REGISTER ROUTES =================
@@ -71,7 +69,7 @@ async def startup_event():
 
 @app.on_event("shutdown")
 async def shutdown_event():
-    pya.terminate()
+    pass  # cleanup hook for future use
 
 
 @app.get("/api/weather")

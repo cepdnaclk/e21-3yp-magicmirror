@@ -1,6 +1,5 @@
 import os
 import sys
-import pyaudio
 from dotenv import load_dotenv
 
 # ================= LOAD ENVIRONMENT =================
@@ -35,7 +34,9 @@ CUSTOM_PROMPT = (
 )
 
 # ================= AUDIO SETTINGS (main app) =================
-FORMAT = pyaudio.paInt16
+# pyaudio.paInt16 == 8; hardcoded to avoid importing the PortAudio C library
+# at settings-load time (prevents segfault on Raspberry Pi)
+FORMAT = 8
 CHANNELS = 1
 HARDWARE_IN_RATE = 16000
 HARDWARE_OUT_RATE = 24000
