@@ -16,7 +16,10 @@ def register_routes(app, bot, manager):
 
     @app.get("/api/presence/status")
     async def presence_status():
-        return {"is_present": app_state.is_present}
+        return JSONResponse(
+            content={"is_present": app_state.is_present},
+            headers={"Cache-Control": "no-store, no-cache, must-revalidate"}
+        )
 
     @app.get("/api/presence/{status}")
     async def presence_trigger(status: str):

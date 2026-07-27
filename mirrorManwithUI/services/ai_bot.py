@@ -116,7 +116,7 @@ class SinhalaBot:
             try:
                 with sr.Microphone() as source:
                     self.recognizer.adjust_for_ambient_noise(source, duration=0.5)
-                    print("?? Listening for 'Hey mirror' or music commands...")
+                    print("🎤 Listening for 'Hey mirror'...", flush=True)
                     # FIXED: Added to_thread so it doesn't block the AWS S3 watcher!
                     audio = await asyncio.to_thread(
                         self.recognizer.listen, source, timeout=2.0, phrase_time_limit=3.0

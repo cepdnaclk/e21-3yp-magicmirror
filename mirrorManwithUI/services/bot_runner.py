@@ -25,6 +25,13 @@ from config import settings  # noqa: E402 — triggers dotenv loading
 
 SERVER_URL = "http://127.0.0.1:8000"
 
+# Shared session with cache-busting headers so we never get a 304
+_session = requests.Session()
+_session.headers.update({
+    "Cache-Control": "no-cache, no-store",
+    "Pragma": "no-cache",
+})
+
 
 # ─────────────────────────────────────────────────────────────
 # Remote bridge — replaces direct app_state / manager access
@@ -36,11 +43,15 @@ class _RemoteAppState:
     @property
     def is_present(self):
         try:
-            r = requests.get(f"{SERVER_URL}/api/presence/status", timeout=1)
-            if r.status_code == 200:
-                return r.json().get("is_present", False)
-        except Exception:
-            pass
+            r = _session.get(f"{SERVER_URL}/api/presence/status", timeout=1)
+            if r.status_code in (200, 304):
+                # 304 means the server says "not changed" — reuse last known value
+                if r.status_code == 200:
+                    return r.json().get("is_present", False)
+                # For 304, fall through and return current module value
+                return _real_app_state_module.is_present if hasattr(_real_app_state_module, 'is_present') else False
+        except Exception as e:
+            print(f"[BotRunner] ⚠️ Presence check failed: {e}", flush=True)
         return False
 
     @is_present.setter
@@ -186,11 +197,17 @@ class RemoteSinhalaBot(SinhalaBot):
 
 async def _sync_presence_loop():
     """Continuously sync presence from the server into the patched module."""
+    last_logged = None
     while True:
         try:
-            _real_app_state_module.is_present = _remote_state.is_present
-        except Exception:
-            pass
+            val = _remote_state.is_present
+            _real_app_state_module.is_present = val
+            # Only log when the value changes to avoid spam
+            if val != last_logged:
+                print(f"[BotRunner] Presence synced: {'PRESENT' if val else 'ABSENT'}", flush=True)
+                last_logged = val
+        except Exception as e:
+            print(f"[BotRunner] ⚠️ Sync error: {e}", flush=True)
         await asyncio.sleep(0.5)
 
 
