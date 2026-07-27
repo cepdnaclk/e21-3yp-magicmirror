@@ -4,6 +4,7 @@ import time
 import os
 import sys
 import threading
+import requests
 from datetime import datetime
 
 try:
@@ -33,6 +34,15 @@ def _get_s3():
     if s3 is None:
         s3 = get_s3_client()
     return s3
+def check_is_present_api():
+    """Query local FastAPI presence status."""
+    try:
+        response = requests.get("http://127.0.0.1:8000/api/presence/status", timeout=1)
+        if response.status_code == 200:
+            return response.json().get("is_present", False)
+    except Exception:
+        pass
+    return False  # default to False (absent) if API is unreachable
 
 
 def get_family_member_owners(detected_person):
@@ -199,6 +209,9 @@ def _run_with_picamera():
     last_process_time = time.time()
     try:
         while True:
+            if not check_is_present_api():
+                time.sleep(2)
+                continue
             frame = picam2.capture_array()
             current_time = time.time()
             if current_time - last_process_time >= 10:
@@ -229,6 +242,9 @@ def _run_with_opencv():
     last_process_time = time.time()
     try:
         while True:
+            if not check_is_present_api():
+                time.sleep(2)
+                continue
             ret, frame = cap.read()
             if not ret:
                 break

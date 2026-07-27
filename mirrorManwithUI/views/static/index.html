@@ -261,12 +261,32 @@
         function updateBlackoutState() {
             const wrapper = document.getElementById('mirror-wrapper');
             const v = document.getElementById('mirror-video');
-            if (userIsPresent) {
+            const uiLayer = document.getElementById('ui-layer');
+            const notifContainer = document.getElementById('notification-container');
+            const videoLayer = document.getElementById('video-layer');
+
+            if (mirrorActive) {
+                uiLayer.classList.add('hidden');
+                notifContainer.classList.add('hidden');
+                videoLayer.classList.add('visible');
+                wrapper.classList.remove('black-out');
+                return;
+            }
+
+            videoLayer.classList.remove('visible');
+
+            if (activeMsgState === 'FULLSCREEN') {
+                uiLayer.classList.add('hidden');
+                notifContainer.classList.add('hidden');
                 wrapper.classList.remove('black-out');
             } else {
-                if (activeMsgState === 'FULLSCREEN') {
+                if (userIsPresent) {
+                    uiLayer.classList.remove('hidden');
+                    notifContainer.classList.remove('hidden');
                     wrapper.classList.remove('black-out');
                 } else {
+                    uiLayer.classList.add('hidden');
+                    notifContainer.classList.add('hidden');
                     wrapper.classList.add('black-out');
                     v.pause();
                 }
@@ -391,14 +411,18 @@
                             updateBlackoutState();
                         }, 10000);
                     } else if (activeMessage && activeMsgState === 'NOTIFICATION_BOX') {
-                        userHasBeenPresentWithBoxMsg = true;
+                        // Disappear from the box 10 seconds after presence is detected
+                        clearActiveMsgTimer();
+                        activeMsgTimer = setTimeout(() => {
+                            clearNotificationBox();
+                            activeMessage = null;
+                            activeMsgState = null;
+                        }, 10000);
                     }
                 } else {
-                    if (activeMessage && activeMsgState === 'NOTIFICATION_BOX' && userHasBeenPresentWithBoxMsg) {
-                        clearNotificationBox();
-                        activeMessage = null;
-                        activeMsgState = null;
-                        userHasBeenPresentWithBoxMsg = false;
+                    if (activeMessage && activeMsgState === 'NOTIFICATION_BOX') {
+                        // Cancel the clear timer if they leave before the 10 seconds
+                        clearActiveMsgTimer();
                     }
                 }
 
@@ -442,10 +466,7 @@
             if (payload && payload.type === 'reminder') {
                 const rawMsg = payload.message;
 
-                displayFullscreen(rawMsg, 10);
-                setTimeout(() => {
-                    hideFullscreen();
-
+                const parseAndAddReminder = () => {
                     try {
                         let namePart = "Untitled";
                         let datePart = "Today";
@@ -453,21 +474,11 @@
 
                         if (rawMsg.includes("👉")) {
                             let parts = rawMsg.split("👉");
-
                             namePart = parts[1] ? parts[1].trim() : "Untitled";
-
-                            let dateTimePart =
-                                parts[0].replace(/📅 |Upcoming: /gi, "").trim();
-
+                            let dateTimePart = parts[0].replace(/📅 |Upcoming: /gi, "").trim();
                             let dateTimeSplit = dateTimePart.split(/ at /i);
-
-                            datePart = dateTimeSplit[0]
-                                ? dateTimeSplit[0].trim()
-                                : "Today";
-
-                            timePart = dateTimeSplit[1]
-                                ? dateTimeSplit[1].trim()
-                                : "Now";
+                            datePart = dateTimeSplit[0] ? dateTimeSplit[0].trim() : "Today";
+                            timePart = dateTimeSplit[1] ? dateTimeSplit[1].trim() : "Now";
                         } else {
                             namePart = rawMsg;
                         }
@@ -484,8 +495,19 @@
                             date: 'Today'
                         });
                     }
-                }, 10000);
+                };
 
+                if (userIsPresent) {
+                    displayFullscreen(rawMsg, 10);
+                    setTimeout(() => {
+                        hideFullscreen();
+                        parseAndAddReminder();
+                    }, 10000);
+                } else {
+                    // Go straight to the reminder box (calendar list) when no one is present
+                    parseAndAddReminder();
+                }
+                return;
             }
 
             // ── DynamoDB live reminder list ─────────────────────────────

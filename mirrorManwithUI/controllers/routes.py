@@ -1,11 +1,14 @@
 import os
 import json
+import asyncio
 from fastapi import WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
 
+from models import app_state
 from models.app_state import notifications, priority_schedule
 from config.settings import BUCKET_NAME
 from config.aws_config import get_s3_client
+from services import music_assistant
 
 
 def register_routes(app, bot, manager):
@@ -15,8 +18,21 @@ def register_routes(app, bot, manager):
     async def presence_trigger(status: str):
         # Receives 'present' or 'absent' from the Serial Python script
         # and broadcasts it to the Web UI via WebSockets.
+        is_pres = (status == "present")
+        app_state.is_present = is_pres
+        
+        if not is_pres:
+            # When absent, disable bot session and stop music playback
+            bot.is_active = False
+            if music_assistant.is_music_playing():
+                asyncio.create_task(music_assistant.stop_music(announce=False))
+                
         await manager.broadcast(json.dumps({"type": "presence", "value": status}))
         return {"status": "success", "received": status}
+
+    @app.get("/api/presence/status")
+    async def presence_status():
+        return {"is_present": app_state.is_present}
 
     @app.get("/")
     async def get_html():
@@ -77,9 +93,9 @@ def register_routes(app, bot, manager):
     async def websocket_endpoint(websocket: WebSocket):
         await manager.connect(websocket)
         
-        # MOCK PRESENCE SENSOR: Automatically tell the UI that someone is present
-        # since we don't have the physical sensor running via serial_bridge.py
-        await websocket.send_text(json.dumps({"type": "presence", "value": "present"}))
+        # Send current presence status to UI on connection
+        current_status = "present" if app_state.is_present else "absent"
+        await websocket.send_text(json.dumps({"type": "presence", "value": current_status}))
 
         if bot.is_active:
             await websocket.send_text("show_mirror")

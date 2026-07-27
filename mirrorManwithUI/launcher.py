@@ -27,16 +27,31 @@ def start_mirror_system():
 
     # 2. Vision Engine ?? ????? ?????
     vision_proc = subprocess.Popen([python_exe, "-m", "services.vision_engine"], cwd=base_dir)
-    print("? Vision Engine ?? ??????? ????.")
+    print("👁️ Vision Engine started.")
+
+    # 3. Serial Bridge (ESP32 Presence Sensor)
+    serial_proc = subprocess.Popen([python_exe, "-m", "services.serial_bridge"], cwd=base_dir)
+    print("🔌 Serial Bridge for ESP32 Presence Sensor started.")
 
     try:
-        # ??????? ????? ??????????? ???? ?? ??????
-        ui_proc.wait()
-        vision_proc.wait()
+        # Keep running and monitor processes
+        while True:
+            if ui_proc.poll() is not None:
+                break
+            if vision_proc.poll() is not None:
+                break
+            time.sleep(1)
     except KeyboardInterrupt:
-        print("\n?? ??????? ?????????...")
+        print("\n🛑 Shutting down ReflectStudio system...")
+    finally:
+        print("Cleaning up processes...")
         ui_proc.terminate()
         vision_proc.terminate()
+        serial_proc.terminate()
+        # Wait for shutdown to complete
+        ui_proc.wait()
+        vision_proc.wait()
+        serial_proc.wait()
 
 if __name__ == "__main__":
     start_mirror_system()

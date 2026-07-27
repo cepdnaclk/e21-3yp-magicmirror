@@ -4,6 +4,7 @@ import json
 from google import genai
 from google.genai import types
 
+from models import app_state
 from config.settings import CUSTOM_PROMPT, GEMINI_MODEL, GEMINI_PROJECT_ID
 from controllers.websocket_manager import manager
 from services.tts_service import speak_pygame
@@ -105,6 +106,9 @@ class SinhalaBot:
             "close photos",
         ]
         while not self.should_exit:
+            if not app_state.is_present:
+                await asyncio.sleep(1)
+                continue
             try:
                 with sr.Microphone() as source:
                     self.recognizer.adjust_for_ambient_noise(source, duration=0.5)
@@ -188,6 +192,9 @@ class SinhalaBot:
         shutdown_keywords = ["goodbye", "stop", "shut down", "exit", "bye", "?????????"]
 
         while self.is_active:
+            if not app_state.is_present:
+                self.is_active = False
+                break
             print("\n?? Listening...")
             # Show idle.mp4 while waiting for user speech
             await manager.broadcast(json.dumps({"type": "video", "state": "idle"}))
@@ -313,6 +320,9 @@ class SinhalaBot:
 
     async def run(self):
         while not self.should_exit:
+            if not app_state.is_present:
+                await asyncio.sleep(1)
+                continue
             await self.detect_wake_word()
             if self.is_active:
                 # 1. Mirror man is visible (show_mirror already broadcast)
