@@ -13,7 +13,8 @@ class TestVisionEngine:
         """Alert JSON should have required fields."""
         mock_s3 = MagicMock()
         from services.vision_engine import send_alert_to_app
-        with patch("services.vision_engine.s3", mock_s3):
+        with patch("services.vision_engine.s3", mock_s3), \
+             patch("services.vision_engine.get_family_member_owners", return_value=[]):
             send_alert_to_app("thenuka", "SAD")
 
             # Verify S3 put_object was called
@@ -35,7 +36,8 @@ class TestVisionEngine:
         """Alert message should include person name and emotion."""
         mock_s3 = MagicMock()
         from services.vision_engine import send_alert_to_app
-        with patch("services.vision_engine.s3", mock_s3):
+        with patch("services.vision_engine.s3", mock_s3), \
+             patch("services.vision_engine.get_family_member_owners", return_value=[]):
             send_alert_to_app("john", "ANGRY")
             call_kwargs = mock_s3.put_object.call_args[1]
             body = json.loads(call_kwargs["Body"])
@@ -46,7 +48,8 @@ class TestVisionEngine:
         """Alert should be uploaded to public/alerts/{userId}/ sub-folder."""
         mock_s3 = MagicMock()
         from services.vision_engine import send_alert_to_app
-        with patch("services.vision_engine.s3", mock_s3):
+        with patch("services.vision_engine.s3", mock_s3), \
+             patch("services.vision_engine.get_family_member_owners", return_value=[]):
             send_alert_to_app("user1", "FEAR")
             key = mock_s3.put_object.call_args[1]["Key"]
             # New targeted format: public/alerts/{userId}/alert_{timestamp}.json

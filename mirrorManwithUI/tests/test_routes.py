@@ -95,6 +95,8 @@ class TestRoutes:
 
     def test_websocket_no_mirror_when_inactive(self, test_app):
         """WebSocket should NOT send 'show_mirror' when bot is inactive."""
+        from models import app_state
+        app_state.is_present = True
         app, mock_bot, _ = test_app
         mock_bot.is_active = False
         client = TestClient(app)

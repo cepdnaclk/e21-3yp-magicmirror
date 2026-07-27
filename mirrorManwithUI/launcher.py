@@ -58,11 +58,16 @@ def start_mirror_system():
     serial_proc = start_proc("Serial Bridge", [python_exe, "-m", "services.serial_bridge"])
     print("🔌 Serial Bridge for ESP32 Presence Sensor started.", flush=True)
 
+    # 4. AI Bot (Isolated Process to prevent PortAudio segfaults from crashing UI)
+    bot_proc = start_proc("AI Bot", [python_exe, "-m", "services.bot_runner"])
+    print("🤖 AI Bot process started.", flush=True)
+
     # Build a lookup for logging convenience
     procs = {
         "Mirror UI (app.py)": ui_proc,
         "Vision Engine": vision_proc,
         "Serial Bridge": serial_proc,
+        "AI Bot": bot_proc,
     }
 
     try:
@@ -88,7 +93,7 @@ def start_mirror_system():
         print("\n🛑 Shutting down ReflectStudio system...")
     finally:
         print("Cleaning up processes...", flush=True)
-        for label, proc in [("Mirror UI", ui_proc), ("Vision Engine", vision_proc), ("Serial Bridge", serial_proc)]:
+        for label, proc in [("Mirror UI", ui_proc), ("Vision Engine", vision_proc), ("Serial Bridge", serial_proc), ("AI Bot", bot_proc)]:
             try:
                 if proc.poll() is None:
                     proc.terminate()

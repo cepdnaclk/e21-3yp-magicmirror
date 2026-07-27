@@ -94,7 +94,7 @@ class SinhalaBot:
 
     async def detect_wake_word(self):
         """Listen for hotwords without blocking the FastAPI server"""
-        triggers = ["hey mirror", "mirror", "hai mera", "hey me", "mera"]
+        triggers = ["hey mirror", "hai mera", "hey me", "mera"]
 
         # Photo show triggers — exact phrases only
         photo_show_triggers = [

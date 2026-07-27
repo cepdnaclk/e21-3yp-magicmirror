@@ -1,11 +1,12 @@
 import sys
 import asyncio
+import json
 import os
 import uvicorn
 import webbrowser
 import time
 import threading
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 # Import config first (triggers load_dotenv and env setup)
@@ -25,7 +26,6 @@ if sys.platform.startswith("win"):
 # Import components
 from controllers.websocket_manager import manager
 from controllers.routes import register_routes
-from services.ai_bot import SinhalaBot
 from services.s3_watcher import check_s3_inbox
 
 # ================= INITIALIZE FASTAPI =================
@@ -36,11 +36,9 @@ static_dir = os.path.join(os.path.dirname(__file__), "views", "static")
 if os.path.exists(static_dir):
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
-# ================= INITIALIZE BOT =================
-bot = SinhalaBot()
-
 # ================= REGISTER ROUTES =================
-register_routes(app, bot, manager)
+# Bot is now a separate process — pass None; routes.py will handle gracefully
+register_routes(app, bot=None, manager=manager)
 
 # ================= PERIODIC FACE INDEXING =================
 async def run_periodic_face_indexing():
@@ -62,14 +60,51 @@ async def run_periodic_face_indexing():
 # ================= STARTUP EVENT =================
 @app.on_event("startup")
 async def startup_event():
-    # Start both the Bot and the AWS Watcher alongside the Web Server!
-    asyncio.create_task(bot.run())
+    # S3 watcher + face indexer run inside the server (no native-lib risk)
+    # Bot is launched as a SEPARATE PROCESS by launcher.py to isolate PyAudio
     asyncio.create_task(check_s3_inbox())
     asyncio.create_task(run_periodic_face_indexing())
 
 @app.on_event("shutdown")
 async def shutdown_event():
     pass  # cleanup hook for future use
+
+
+# ================= INTERNAL BROADCAST API =================
+# Used by the bot_runner process to relay messages to WebSocket clients
+@app.post("/api/internal/broadcast")
+async def internal_broadcast(request: Request):
+    """Receive a JSON payload from the bot process and broadcast to all WebSocket clients."""
+    try:
+        payload = await request.json()
+        await manager.broadcast(json.dumps(payload))
+        return {"status": "ok"}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+
+
+# ================= INTERNAL BOT STATUS API =================
+@app.get("/api/bot/status")
+async def get_bot_status():
+    from models import app_state
+    return {
+        "is_active": app_state.is_bot_active,
+        "is_speaking": app_state.is_bot_speaking
+    }
+
+@app.post("/api/bot/status")
+async def post_bot_status(request: Request):
+    from models import app_state
+    try:
+        payload = await request.json()
+        if "is_active" in payload:
+            app_state.is_bot_active = payload["is_active"]
+        if "is_speaking" in payload:
+            app_state.is_bot_speaking = payload["is_speaking"]
+        return {"status": "success"}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+
 
 
 @app.get("/api/weather")
@@ -89,7 +124,7 @@ def weather_api():
 
 # ================= MASTER LAUNCHER =================
 if __name__ == "__main__":
-    print("?? Starting Mirror Man OS...")
+    print("🪞 Starting Mirror Man OS...")
 
     # Define the local URL
     url = "http://127.0.0.1:8000"
@@ -98,7 +133,7 @@ if __name__ == "__main__":
     # to ensure the server has time to start up.
     def open_browser():
         time.sleep(2)
-        print(f"?? Auto-opening dashboard at {url}")
+        print(f"🌐 Auto-opening dashboard at {url}")
         webbrowser.open(url)
 
     # We start the browser-opener in a separate thread

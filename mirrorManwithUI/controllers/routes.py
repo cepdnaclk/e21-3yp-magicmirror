@@ -23,7 +23,9 @@ def register_routes(app, bot, manager):
         
         if not is_pres:
             # When absent, disable bot session and stop music playback
-            bot.is_active = False
+            app_state.is_bot_active = False
+            if bot is not None:
+                bot.is_active = False
             if music_assistant.is_music_playing():
                 asyncio.create_task(music_assistant.stop_music(announce=False))
                 
@@ -97,7 +99,7 @@ def register_routes(app, bot, manager):
         current_status = "present" if app_state.is_present else "absent"
         await websocket.send_text(json.dumps({"type": "presence", "value": current_status}))
 
-        if bot.is_active:
+        if app_state.is_bot_active or (bot is not None and bot.is_active):
             await websocket.send_text("show_mirror")
         try:
             while True:
@@ -105,7 +107,10 @@ def register_routes(app, bot, manager):
         except WebSocketDisconnect:
             manager.disconnect(websocket)
             # If no browser tab is open anymore, stop the bot
-            if len(manager.active_connections) == 0 and bot.is_active:
+            if len(manager.active_connections) == 0 and (app_state.is_bot_active or (bot is not None and bot.is_active)):
                 print("[INFO] Last browser tab closed — stopping Mirror Man.", flush=True)
-                bot.is_active = False
-                bot.is_speaking = False
+                app_state.is_bot_active = False
+                app_state.is_bot_speaking = False
+                if bot is not None:
+                    bot.is_active = False
+                    bot.is_speaking = False

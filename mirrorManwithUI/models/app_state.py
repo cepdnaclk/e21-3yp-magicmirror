@@ -9,3 +9,8 @@ priority_schedule = []
 
 # Presence State
 is_present = False
+
+# Bot State (tracked across processes)
+is_bot_active = False
+is_bot_speaking = False
+
