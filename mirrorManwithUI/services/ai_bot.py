@@ -94,7 +94,11 @@ class SinhalaBot:
 
     async def detect_wake_word(self):
         """Listen for hotwords without blocking the FastAPI server"""
-        triggers = ["hey mirror", "hai mera", "hey me", "mera"]
+        triggers = [
+            "hey mirror", "hai mera", "hey me", "mera", "hi mirror",
+            "a mirror", "8 mirror", "hey mira", "he mirror", "hey mirror",
+            "mirror",  # broad fallback — catches most Google mis-transcriptions
+        ]
 
         # Photo show triggers — exact phrases only
         photo_show_triggers = [
@@ -127,7 +131,7 @@ class SinhalaBot:
                         text = text.lower()
                         is_sinhala_detected = True
                         
-                    print(f"?? Detected: {text}")
+                    print(f"[Bot] Detected: '{text}'", flush=True)
                     
                     from services import music_assistant
                     is_playing = music_assistant.is_music_playing()
@@ -181,9 +185,14 @@ class SinhalaBot:
                             await music_assistant.stop_music()
 
                 except sr.UnknownValueError:
-                    pass
-            except Exception:
-                await asyncio.sleep(0.1)
+                    pass  # No speech detected — normal
+                except sr.RequestError as e:
+                    print(f"[Bot] ⚠️ Google Speech API error: {e}", flush=True)
+            except sr.WaitTimeoutError:
+                pass  # Timed out waiting for speech — normal
+            except Exception as e:
+                print(f"[Bot] ⚠️ Microphone/detection error: {e}", flush=True)
+                await asyncio.sleep(0.5)
 
     async def run_session(self):
         """Continuous Conversation Session"""
