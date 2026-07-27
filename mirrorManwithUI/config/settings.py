@@ -53,3 +53,8 @@ VOICE = "en-GB-SoniaNeural"
 SERIAL_PORT = "/dev/ttyUSB0"
 SERIAL_BAUD = 115200
 API_URL = "http://127.0.0.1:8000/api/presence/"
+
+# Distance threshold for presence detection (cm).
+# A reading between PRESENCE_MIN_CM and PRESENCE_MAX_CM is treated as PRESENT.
+PRESENCE_MIN_CM = float(os.getenv("PRESENCE_MIN_CM", "10"))
+PRESENCE_MAX_CM = float(os.getenv("PRESENCE_MAX_CM", "150"))
