@@ -1,6 +1,7 @@
 import serial
 import time
 import requests
+import sys
 
 from config.settings import SERIAL_PORT, SERIAL_BAUD, API_URL
 
@@ -8,15 +9,19 @@ from config.settings import SERIAL_PORT, SERIAL_BAUD, API_URL
 PORT = SERIAL_PORT
 BAUD = SERIAL_BAUD
 
-print("Connecting to ESP32 via Serial...")
-try:
-    # Adding a timeout to ensure it doesn't get stuck
-    ser = serial.Serial(PORT, BAUD, timeout=0.1)
-    time.sleep(2)
-    print("Bridge Active. Listening for PRESENT/ABSENT signals...")
-except Exception as e:
-    print(f"Connection Failed: {e}")
-    exit()
+def connect_serial():
+    while True:
+        print(f"Connecting to ESP32 via Serial on {PORT}...", flush=True)
+        try:
+            ser = serial.Serial(PORT, BAUD, timeout=0.1)
+            time.sleep(2)
+            print("Bridge Active. Listening for PRESENT/ABSENT signals...", flush=True)
+            return ser
+        except Exception as e:
+            print(f"Connection Failed: {e}. Retrying in 5 seconds...", flush=True)
+            time.sleep(5)
+
+ser = connect_serial()
 
 while True:
     try:
@@ -28,13 +33,21 @@ while True:
 
         # Check if the line contains our keywords anywhere within it
         if "PRESENT" in raw_line:
-            print(">>> Event detected: PRESENT")
-            requests.get(API_URL + "present")
+            print(">>> Event detected: PRESENT", flush=True)
+            requests.get(API_URL + "present", timeout=2)
 
         elif "ABSENT" in raw_line:
-            print(">>> Event detected: ABSENT")
-            requests.get(API_URL + "absent")
+            print(">>> Event detected: ABSENT", flush=True)
+            requests.get(API_URL + "absent", timeout=2)
 
+    except serial.SerialException as se:
+        print(f"⚠️ Serial connection lost: {se}. Reconnecting...", flush=True)
+        try:
+            ser.close()
+        except Exception:
+            pass
+        ser = connect_serial()
     except Exception as e:
-        # Ignore minor serial glitches
+        # Ignore other minor glitches
         pass
+

@@ -44,22 +44,22 @@ def start_mirror_system():
             pass
 
     # 1. Start UI & WebSocket server (app.py) — this is the CRITICAL process
-    ui_proc = start_proc("Mirror UI", [python_exe, "app.py"])
+    ui_proc = start_proc("Mirror UI", [python_exe, "-u", "app.py"])
     print("✅ Mirror UI launched.", flush=True)
 
     # Give the UI server time to initialise before starting other services
     time.sleep(5)
 
     # 2. Vision Engine
-    vision_proc = start_proc("Vision Engine", [python_exe, "-m", "services.vision_engine"])
+    vision_proc = start_proc("Vision Engine", [python_exe, "-u", "-m", "services.vision_engine"])
     print("👁️ Vision Engine started.", flush=True)
 
     # 3. Serial Bridge (ESP32 Presence Sensor)
-    serial_proc = start_proc("Serial Bridge", [python_exe, "-m", "services.serial_bridge"])
+    serial_proc = start_proc("Serial Bridge", [python_exe, "-u", "-m", "services.serial_bridge"])
     print("🔌 Serial Bridge for ESP32 Presence Sensor started.", flush=True)
 
     # 4. AI Bot (Isolated Process to prevent PortAudio segfaults from crashing UI)
-    bot_proc = start_proc("AI Bot", [python_exe, "-m", "services.bot_runner"])
+    bot_proc = start_proc("AI Bot", [python_exe, "-u", "-m", "services.bot_runner"])
     print("🤖 AI Bot process started.", flush=True)
 
     # Build a lookup for logging convenience
