@@ -25,6 +25,7 @@ COLLECTION_ID = os.getenv("COLLECTION_ID")
 GEMINI_PROJECT_ID = os.getenv("GEMINI_PROJECT_ID")
 GOOGLE_APPLICATION_CREDENTIALS_PATH = os.getenv("GOOGLE_APPLICATION_CREDENTIALS_PATH")
 GEMINI_MODEL = "gemini-2.0-flash"
+GEMINI_LOCATION = os.getenv("GEMINI_LOCATION", "us-central1")
 
 CUSTOM_PROMPT = (
     "You are Mirror Man, a smart mirror assistant. "

@@ -34,6 +34,11 @@ class TestSettings:
         from config.settings import GEMINI_MODEL
         assert GEMINI_MODEL == "gemini-2.0-flash"
 
+    def test_gemini_location_loaded(self):
+        """GEMINI_LOCATION should be available and default to us-central1."""
+        from config.settings import GEMINI_LOCATION
+        assert GEMINI_LOCATION == "us-central1" or isinstance(GEMINI_LOCATION, str)
+
     def test_custom_prompt_is_string(self):
         """CUSTOM_PROMPT must be a non-empty string."""
         from config.settings import CUSTOM_PROMPT

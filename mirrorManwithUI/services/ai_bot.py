@@ -4,14 +4,13 @@ import json
 from google import genai
 from google.genai import types
 
-from config.settings import CUSTOM_PROMPT, GEMINI_MODEL, GEMINI_PROJECT_ID
+from config.settings import CUSTOM_PROMPT, GEMINI_MODEL, GEMINI_PROJECT_ID, GEMINI_LOCATION
 from controllers.websocket_manager import manager
 from services.tts_service import speak_pygame
 
 
 # ================= GEMINI CLIENT =================
 import os
-from config.settings import GEMINI_PROJECT_ID
 
 gemini_client = None
 
@@ -30,7 +29,7 @@ def get_gemini_client():
             gemini_client = genai.Client(
                 vertexai=True,
                 project=GEMINI_PROJECT_ID,
-                location="global"
+                location=GEMINI_LOCATION
             )
         except Exception as e:
             print(f"⚠️ [Gemini Client] Failed to initialize Vertex AI client: {e}", flush=True)
