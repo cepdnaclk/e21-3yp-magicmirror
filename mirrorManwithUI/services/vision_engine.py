@@ -145,10 +145,20 @@ def send_alert_to_app(person_name, emotion):
             print(f"❌ [ALERT ERROR] S3 Upload failed to {file_name}: {e}", flush=True)
 
 
+is_processing = False
+processing_lock = threading.Lock()
+
 def process_image(img_bytes):
     """Handles blocking AWS Rekognition calls in a background thread."""
-    rek = _get_rekognition()
+    global is_processing
+    with processing_lock:
+        if is_processing:
+            print("⚠️ [VISION ENGINE] Previous frame is still processing. Skipping current frame.", flush=True)
+            return
+        is_processing = True
+
     try:
+        rek = _get_rekognition()
         # 1. Detect face emotions
         face_detail = rek.detect_faces(
             Image={'Bytes': img_bytes},
@@ -184,6 +194,9 @@ def process_image(img_bytes):
 
     except Exception as e:
         print(f"⚠️ [ENGINE ERROR] Rekognition error: {e}", flush=True)
+    finally:
+        with processing_lock:
+            is_processing = False
 
 
 def _run_with_picamera():

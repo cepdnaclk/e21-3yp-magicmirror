@@ -94,6 +94,7 @@ async def check_s3_inbox():
     db_poll_counter = 0       # query DynamoDB once every 12 × 5 s = 60 s
     DB_POLL_INTERVAL = 12
 
+    poll_interval = 5
     while True:
         try:
             # ── 1. Instant notifications from caregiver ──────────────────
@@ -142,8 +143,10 @@ async def check_s3_inbox():
                 await manager.broadcast(
                     json.dumps({"type": "reminder_list", "items": upcoming})
                 )
+            poll_interval = 5
 
         except Exception as e:
             print(f"⚠️  S3 Watcher Error: {e}", flush=True)
+            poll_interval = 30
 
-        await asyncio.sleep(5)
+        await asyncio.sleep(poll_interval)

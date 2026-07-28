@@ -71,8 +71,14 @@
         </div>
 
         <div id="video-layer">
-            <video id="mirror-video" loop muted playsinline>
+            <video id="video-idle" class="avatar-video" loop muted playsinline preload="auto">
                 <source src="static/idle.mp4" type="video/mp4">
+            </video>
+            <video id="video-talking" class="avatar-video" loop muted playsinline preload="auto">
+                <source src="static/talking.mp4" type="video/mp4">
+            </video>
+            <video id="video-thinking" class="avatar-video" loop muted playsinline preload="auto">
+                <source src="static/thinking.mp4" type="video/mp4">
             </video>
         </div>
 
@@ -261,9 +267,40 @@
             notifyBox.innerHTML = '<p class="status-text">No new messages</p>';
         }
 
+        function setAvatarState(state) {
+            const idle = document.getElementById('video-idle');
+            const talking = document.getElementById('video-talking');
+            const thinking = document.getElementById('video-thinking');
+
+            const videos = {
+                'idle': idle,
+                'talking': talking,
+                'thinking': thinking
+            };
+
+            for (const [key, video] of Object.entries(videos)) {
+                if (key === state) {
+                    video.classList.add('active');
+                    video.play().catch(e => console.log("Play failed: ", e));
+                } else {
+                    video.classList.remove('active');
+                    setTimeout(() => {
+                        if (!video.classList.contains('active')) {
+                            video.pause();
+                        }
+                    }, 500);
+                }
+            }
+        }
+
+        function pauseAllVideos() {
+            document.getElementById('video-idle').pause();
+            document.getElementById('video-talking').pause();
+            document.getElementById('video-thinking').pause();
+        }
+
         function updateBlackoutState() {
             const wrapper = document.getElementById('mirror-wrapper');
-            const v = document.getElementById('mirror-video');
             if (userIsPresent) {
                 wrapper.classList.remove('black-out');
             } else {
@@ -271,7 +308,7 @@
                     wrapper.classList.remove('black-out');
                 } else {
                     wrapper.classList.add('black-out');
-                    v.pause();
+                    pauseAllVideos();
                 }
             }
         }
@@ -281,7 +318,6 @@
         }
 
         socket.onmessage = (event) => {
-            const v = document.getElementById('mirror-video');
             const wrapper = document.getElementById('mirror-wrapper');
             const uiLayer = document.getElementById('ui-layer');
             const videoLayer = document.getElementById('video-layer');
@@ -302,30 +338,28 @@
                     mirrorActive = true;
                     uiLayer.classList.add('hidden');
                     videoLayer.classList.add('visible');
-                    if (!v.src.includes('idle.mp4')) { v.src = 'static/idle.mp4'; }
-                    v.play();
+                    setAvatarState('idle');
                     return;
                 }
                 if (payload === 'hide_mirror') {
                     mirrorActive = false;
                     videoLayer.classList.remove('visible');
                     uiLayer.classList.remove('hidden');
-                    v.pause();
+                    pauseAllVideos();
                     return;
                 }
                 if (payload === 'idle') {
                     if (mirrorActive) {
-                        if (!v.src.includes('idle.mp4')) { v.src = 'static/idle.mp4'; }
-                        v.play();
+                        setAvatarState('idle');
                     }
                     return;
                 }
                 if (payload === 'thinking') {
-                    if (!v.src.includes('thinking.mp4')) { v.src = 'static/thinking.mp4'; v.play(); }
+                    setAvatarState('thinking');
                     return;
                 }
                 if (payload === 'talking') {
-                    if (!v.src.includes('talking.mp4')) { v.src = 'static/talking.mp4'; v.play(); }
+                    setAvatarState('talking');
                     return;
                 }
                 return;
@@ -337,8 +371,7 @@
                 mirrorActive = true;
                 uiLayer.classList.add('hidden');
                 videoLayer.classList.add('visible');
-                if (!v.src.includes('idle.mp4')) { v.src = 'static/idle.mp4'; }
-                v.play();
+                setAvatarState('idle');
                 return;
             }
 
@@ -347,7 +380,7 @@
                 mirrorActive = false;
                 videoLayer.classList.remove('visible');
                 uiLayer.classList.remove('hidden');
-                v.pause();
+                pauseAllVideos();
                 return;
             }
 
@@ -356,17 +389,16 @@
                 const state = payload.state;
                 if (state === 'idle') {
                     if (mirrorActive) {
-                        if (!v.src.includes('idle.mp4')) { v.src = 'static/idle.mp4'; }
-                        v.play();
+                        setAvatarState('idle');
                     }
                     return;
                 }
                 if (state === 'talking') {
-                    if (!v.src.includes('talking.mp4')) { v.src = 'static/talking.mp4'; v.play(); }
+                    setAvatarState('talking');
                     return;
                 }
                 if (state === 'thinking') {
-                    if (!v.src.includes('thinking.mp4')) { v.src = 'static/thinking.mp4'; v.play(); }
+                    setAvatarState('thinking');
                     return;
                 }
                 return;
@@ -374,10 +406,9 @@
 
             // {"type": "status", "state": "thinking" | "listening" | "idle"}
             if (payload && payload.type === 'status') {
-                // Status messages are informational; map to the matching video state
                 const state = payload.state;
                 if (state === 'thinking') {
-                    if (!v.src.includes('thinking.mp4')) { v.src = 'static/thinking.mp4'; v.play(); }
+                    setAvatarState('thinking');
                 }
                 return;
             }

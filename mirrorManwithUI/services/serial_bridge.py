@@ -1,12 +1,19 @@
 import serial
 import time
 import requests
+import threading
 
 from config.settings import SERIAL_PORT, SERIAL_BAUD, API_URL
 
 # Configuration
 PORT = SERIAL_PORT
 BAUD = SERIAL_BAUD
+
+def send_event(status):
+    try:
+        requests.get(API_URL + status, timeout=1.0)
+    except Exception:
+        pass
 
 print("Connecting to ESP32 via Serial...")
 try:
@@ -24,6 +31,7 @@ while True:
         raw_line = ser.readline().decode('utf-8', errors='ignore').strip()
 
         if not raw_line:
+            time.sleep(0.05)
             continue
 
         print(f"[SERIAL RAW] {raw_line}", flush=True)
@@ -31,11 +39,11 @@ while True:
         # Check if the line contains our keywords anywhere within it
         if "PRESENT" in raw_line:
             print(">>> Event detected: PRESENT")
-            requests.get(API_URL + "present")
+            threading.Thread(target=send_event, args=("present",), daemon=True).start()
 
         elif "ABSENT" in raw_line:
             print(">>> Event detected: ABSENT")
-            requests.get(API_URL + "absent")
+            threading.Thread(target=send_event, args=("absent",), daemon=True).start()
 
     except Exception as e:
         # Ignore minor serial glitches
