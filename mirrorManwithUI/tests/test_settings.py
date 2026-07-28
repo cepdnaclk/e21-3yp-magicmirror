@@ -32,7 +32,7 @@ class TestSettings:
     def test_gemini_model_constant(self):
         """GEMINI_MODEL should be the expected model string."""
         from config.settings import GEMINI_MODEL
-        assert GEMINI_MODEL == "gemini-3-flash-preview"
+        assert GEMINI_MODEL == "gemini-2.0-flash"
 
     def test_custom_prompt_is_string(self):
         """CUSTOM_PROMPT must be a non-empty string."""
