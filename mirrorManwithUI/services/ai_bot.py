@@ -142,7 +142,7 @@ class SinhalaBot:
         """Listen for hotwords without blocking the FastAPI server"""
         triggers = [
             "hey mirror", "hai mera", "hey me", "mera", "hi mirror",
-            "a mirror", "8 mirror", "hey mira", "he mirror", "hey mirror",
+            "a mirror", "8 mirror", "hey mira", "he mirror",
             "mirror",  # broad fallback — catches most Google mis-transcriptions
         ]
 
@@ -155,86 +155,83 @@ class SinhalaBot:
         photo_hide_triggers = [
             "close photos",
         ]
-        
+
         while not self.should_exit:
             try:
-                with sr.Microphone(device_index=self.mic_device_index) as source:
+                with sr.Microphone() as source:
                     self.recognizer.adjust_for_ambient_noise(source, duration=0.5)
-                    print("🎤 Listening...", flush=True)
+                    print("🎤 Listening for 'Hey mirror' or music commands...", flush=True)
                     audio = await asyncio.to_thread(
-                        self.recognizer.listen, source, timeout=3.0, phrase_time_limit=4.0
+                        self.recognizer.listen, source, timeout=2.0, phrase_time_limit=3.0
                     )
-            except sr.WaitTimeoutError:
-                continue  # Silence timeout — normal, just loop back
-            except Exception as e:
-                print(f"[Bot] ⚠️ Microphone error: {e}. Re-opening device in 1s...", flush=True)
-                await asyncio.sleep(1.0)
-                continue
 
-            try:
-                # Run English + Sinhala recognition in parallel
-                text, is_sinhala_detected = await self._recognize_best(audio)
-                if not text or not text.strip():
-                    continue
+                # Recognition: fast sequential English → Sinhala fallback
+                try:
+                    is_sinhala_detected = False
+                    try:
+                        text = await asyncio.to_thread(self.recognizer.recognize_google, audio, language="en-US")
+                        text = text.lower()
+                    except sr.UnknownValueError:
+                        text = await asyncio.to_thread(self.recognizer.recognize_google, audio, language="si-LK")
+                        text = text.lower()
+                        is_sinhala_detected = True
 
-                print(f"[Bot] Detected: '{text}'", flush=True)
+                    print(f"[Bot] Detected: '{text}'", flush=True)
 
-                from services import music_assistant
-                is_playing = music_assistant.is_music_playing()
-                is_paused = music_assistant.paused
-                is_mirror_wake_word = any(trig in text for trig in triggers)
+                    from services import music_assistant
+                    is_playing = music_assistant.is_music_playing()
+                    is_paused = music_assistant.paused
+                    is_mirror_wake_word = any(trig in text for trig in triggers)
 
-                # ── Photo commands (only when Mirror Man is NOT active) ──
-                if not self.is_active:
-                    is_photo_show = any(trig in text for trig in photo_show_triggers)
-                    is_photo_hide = any(trig in text for trig in photo_hide_triggers)
-                    if is_photo_show:
-                        print("📸 Photo command: showing gallery", flush=True)
-                        await manager.broadcast(json.dumps({"type": "show_photos"}))
-                        continue
-                    if is_photo_hide:
-                        print("📸 Photo command: hiding gallery", flush=True)
-                        await manager.broadcast(json.dumps({"type": "hide_photos"}))
-                        continue
+                    # ── Photo commands (only when Mirror Man is NOT active) ──
+                    if not self.is_active:
+                        is_photo_show = any(trig in text for trig in photo_show_triggers)
+                        is_photo_hide = any(trig in text for trig in photo_hide_triggers)
+                        if is_photo_show:
+                            print("📸 Photo command: showing gallery", flush=True)
+                            await manager.broadcast(json.dumps({"type": "show_photos"}))
+                            continue
+                        if is_photo_hide:
+                            print("📸 Photo command: hiding gallery", flush=True)
+                            await manager.broadcast(json.dumps({"type": "hide_photos"}))
+                            continue
 
-                # ── Mirror Man wake word — only activates when someone is present ──
-                if is_mirror_wake_word:
-                    if not app_state.is_present:
-                        print("[Bot] Wake word heard but no one present — ignoring.", flush=True)
-                        continue
-                    if is_playing and not is_paused:
-                        print("[Bot] Music is playing, ignoring wake word.", flush=True)
-                        continue
-                    elif is_playing and is_paused:
-                        await asyncio.to_thread(self.speak, "Please stop the music to talk to me.")
-                        continue
-                    else:
-                        print("✅ Wake word detected! Activating mirror...", flush=True)
-                        await manager.broadcast(json.dumps({"type": "mirror_show", "status": "active"}))
-                        self.is_active = True
-                        return
+                    # ── Mirror Man wake word — only activates when someone is present ──
+                    if is_mirror_wake_word:
+                        if not app_state.is_present:
+                            print("[Bot] Wake word heard but no one present — ignoring.", flush=True)
+                            continue
+                        if is_playing and not is_paused:
+                            print("[Bot] Music is playing, ignoring Mirror Man wake word.", flush=True)
+                            continue
+                        elif is_playing and is_paused:
+                            await asyncio.to_thread(self.speak, "Please stop the music to get back to Mirror Man.")
+                            continue
+                        else:
+                            print("✅ Wake word detected! Activating mirror...", flush=True)
+                            await manager.broadcast(json.dumps({"type": "mirror_show", "status": "active"}))
+                            self.is_active = True
+                            return
 
-                # ── Music commands — work regardless of presence ──
-                action, param, is_sinhala = music_assistant.parse_command(text, is_sinhala_detected)
-                if action != 'ignore':
-                    print(f"[Bot] Music command: {action} ({param})", flush=True)
-                    if action == 'play':
-                        await music_assistant.play_youtube_music(param, is_sinhala)
-                    elif action == 'stop':
-                        await music_assistant.stop_music()
-                    elif action == 'pause':
-                        await music_assistant.pause_music()
-                    elif action == 'resume':
-                        await music_assistant.resume_music()
-                    elif action == 'exit':
-                        await music_assistant.stop_music()
+                    # ── Music commands — work regardless of presence ──
+                    action, param, is_sinhala = music_assistant.parse_command(text, is_sinhala_detected)
+                    if action != 'ignore':
+                        print(f"[Bot] Music command: {action} ({param})", flush=True)
+                        if action == 'play':
+                            await music_assistant.play_youtube_music(param, is_sinhala)
+                        elif action == 'stop':
+                            await music_assistant.stop_music()
+                        elif action == 'pause':
+                            await music_assistant.pause_music()
+                        elif action == 'resume':
+                            await music_assistant.resume_music()
+                        elif action == 'exit':
+                            await music_assistant.stop_music()
 
-            except sr.UnknownValueError:
-                pass  # No speech detected — normal
-            except sr.RequestError as e:
-                print(f"[Bot] ⚠️ Google Speech API error: {e}", flush=True)
-            except Exception as e:
-                print(f"[Bot] ⚠️ Unexpected error: {e}", flush=True)
+                except sr.UnknownValueError:
+                    pass  # No speech detected — normal
+            except Exception:
+                await asyncio.sleep(0.1)
 
     async def run_session(self):
         """Continuous Conversation Session"""
@@ -243,18 +240,18 @@ class SinhalaBot:
         shutdown_keywords = ["goodbye", "stop", "shut down", "exit", "bye", "ආයුබෝවන්"]
 
         while self.is_active:
+            print("\n👂 Listening...", flush=True)
+            # Show idle.mp4 while waiting for user speech
+            await manager.broadcast(json.dumps({"type": "video", "state": "idle"}))
+
             try:
                 # Skip mic capture entirely while the mirror is speaking (prevents echo)
                 if self.is_speaking:
                     await asyncio.sleep(0.1)
                     continue
 
-                # Open mic and listen for a single chunk of audio
-                with sr.Microphone(device_index=self.mic_device_index) as source:
+                with sr.Microphone() as source:
                     self.recognizer.adjust_for_ambient_noise(source, duration=0.2)
-                    print("\n👂 Listening...", flush=True)
-                    # Show idle.mp4 while waiting for user speech
-                    await manager.broadcast(json.dumps({"type": "video", "state": "idle"}))
                     audio_data = await asyncio.to_thread(
                         self.recognizer.listen, source, timeout=7.0, phrase_time_limit=15.0
                     )
@@ -262,8 +259,10 @@ class SinhalaBot:
                 print("⏱ Listening timed out — looping back...", flush=True)
                 continue
             except Exception as e:
-                print(f"[Bot] ⚠️ Microphone error: {e}. Reopening in 1s...", flush=True)
-                await asyncio.sleep(1.0)
+                print(f"⚠️ Microphone error: {e}", flush=True)
+                consecutive_errors += 1
+                if consecutive_errors >= 2:
+                    self.is_active = False
                 continue
 
             try:
