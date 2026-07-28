@@ -8,6 +8,7 @@ import 'slideshow_screen.dart';
 import 'manage_family_members_screen.dart';
 import 'manage_reminders_screen.dart'; 
 import 'login_screen.dart'; 
+import 'wifi_setup_screen.dart'; 
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -23,7 +24,9 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isSendingMessage = false; 
   String _userEmail = '';
 
-  final Color _accentColor = const Color(0xFFC4D300); 
+  final Color _accentCyan = const Color(0xFF00F0FF);
+  final Color _accentPurple = const Color(0xFF9E00FF);
+  final Color _accentPink = const Color(0xFFFF007A); 
 
   final List<Map<String, String>> _alertTemplates = [
     {"icon": "🍽️", "label": "Lunch is ready!"},
@@ -68,9 +71,9 @@ class _HomeScreenState extends State<HomeScreen> {
       if (mounted) setState(() => _isSendingMessage = false);
     }
   } 
-  final Color _bgDark = const Color(0xFF0A0B10);      
-  final Color _glassWhite = Colors.white.withOpacity(0.05);
-  final Color _glassBorder = Colors.white.withOpacity(0.1);
+  final Color _bgDark = const Color(0xFF07080E);      
+  final Color _glassWhite = Colors.white.withOpacity(0.03);
+  final Color _glassBorder = Colors.white.withOpacity(0.06);
 
   @override
   void initState() {
@@ -198,23 +201,23 @@ class _HomeScreenState extends State<HomeScreen> {
       extendBodyBehindAppBar: true, 
       appBar: AppBar(
         title: Text("REFLECTSTUDIO", 
-          style: GoogleFonts.orbitron(color: Colors.white, fontSize: 22, letterSpacing: 3, fontWeight: FontWeight.bold)
+          style: GoogleFonts.orbitron(color: Colors.white, fontSize: 20, letterSpacing: 3, fontWeight: FontWeight.bold)
         ).animate(onPlay: (controller) => controller.repeat(reverse: true))
-         .shimmer(duration: 2.seconds, color: _accentColor.withOpacity(0.5)), 
+         .shimmer(duration: 3.seconds, color: _accentCyan.withOpacity(0.5)), 
         centerTitle: true,
         backgroundColor: Colors.transparent,
         elevation: 0,
         flexibleSpace: ClipRect(
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-            child: Container(color: Colors.black.withOpacity(0.2)),
+            child: Container(color: Colors.black.withOpacity(0.3)),
           ),
         ),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout_rounded, color: Colors.white), 
             onPressed: _logout
-          ).animate().fade(delay: 500.ms).scale()
+          ).animate().fade(delay: 400.ms).scale()
         ],
       ),
       body: Stack(
@@ -223,8 +226,8 @@ class _HomeScreenState extends State<HomeScreen> {
           Positioned(
             top: -100, left: -100,
             child: Container(
-              width: 400, height: 400,
-              decoration: BoxDecoration(shape: BoxShape.circle, gradient: RadialGradient(colors: [_accentColor.withOpacity(0.12), Colors.transparent])),
+              width: 350, height: 350,
+              decoration: BoxDecoration(shape: BoxShape.circle, gradient: RadialGradient(colors: [_accentPurple.withOpacity(0.12), Colors.transparent])),
             ).animate(onPlay: (controller) => controller.repeat(reverse: true))
              .scaleXY(end: 1.2, duration: 4.seconds, curve: Curves.easeInOut)
              .fadeIn(duration: 2.seconds),
@@ -232,8 +235,8 @@ class _HomeScreenState extends State<HomeScreen> {
           Positioned(
             bottom: -50, right: -100,
             child: Container(
-              width: 300, height: 300,
-              decoration: BoxDecoration(shape: BoxShape.circle, gradient: RadialGradient(colors: [Colors.cyan.withOpacity(0.08), Colors.transparent])),
+              width: 320, height: 320,
+              decoration: BoxDecoration(shape: BoxShape.circle, gradient: RadialGradient(colors: [_accentCyan.withOpacity(0.08), Colors.transparent])),
             ).animate(onPlay: (controller) => controller.repeat(reverse: true))
              .scaleXY(end: 1.3, duration: 5.seconds, curve: Curves.easeInOut)
              .fadeIn(duration: 2.seconds, delay: 1.seconds),
@@ -255,22 +258,29 @@ class _HomeScreenState extends State<HomeScreen> {
                     title: "MANAGE SLIDESHOW",
                     description: "Upload and schedule images on your smart mirror display.",
                     icon: Icons.photo_library_outlined,
-                    color: _accentColor,
+                    color: _accentCyan,
                     onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const SlideshowScreen())),
                   ),
                   _menuCard(
                     title: "FAMILY PROFILES",
                     description: "Manage family members, details, and facial biometric profiles.",
                     icon: Icons.people_outline_rounded,
-                    color: Colors.blueAccent,
+                    color: _accentPurple,
                     onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const ManageFamilyMembersScreen())),
                   ),
                   _menuCard(
                     title: "SCHEDULED REMINDERS",
                     description: "Schedule system reminders and alerts on the mirror screen.",
                     icon: Icons.event_note_outlined,
-                    color: Colors.purpleAccent,
+                    color: _accentPink,
                     onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const ManageRemindersScreen())),
+                  ),
+                  _menuCard(
+                    title: "CONFIGURE WIFI",
+                    description: "Connect your smart mirror to your home Wi-Fi network.",
+                    icon: Icons.wifi_rounded,
+                    color: _accentCyan,
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const WifiSetupScreen())),
                   ),
                   
                   const SizedBox(height: 24),
@@ -285,7 +295,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: _glassButton(
                           "REBOOT", 
                           Icons.restart_alt_rounded, 
-                          Colors.cyan, 
+                          _accentCyan, 
                           () => _confirmSystemCommand('reboot', 'Reboot')
                         )
                       ),
@@ -294,7 +304,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: _glassButton(
                           "SHUTDOWN", 
                           Icons.power_settings_new_rounded, 
-                          Colors.redAccent, 
+                          const Color(0xFFFF4B4B), 
                           () => _confirmSystemCommand('shutdown', 'Shutdown')
                         )
                       ),
@@ -469,7 +479,7 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           Row(
             children: [
-              Icon(Icons.campaign_outlined, color: _accentColor, size: 20),
+              Icon(Icons.campaign_outlined, color: _accentCyan, size: 20),
               const SizedBox(width: 8),
               Text(
                 "BROADCAST TO MIRROR",
@@ -507,16 +517,16 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 _isSendingMessage
-                    ? const Padding(
-                        padding: EdgeInsets.all(12.0),
+                    ? Padding(
+                        padding: const EdgeInsets.all(12.0),
                         child: SizedBox(
                           width: 20,
                           height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFC4D300)),
+                          child: CircularProgressIndicator(strokeWidth: 2, color: _accentCyan),
                         ),
                       )
                     : IconButton(
-                        icon: Icon(Icons.send_rounded, color: _speakController.text.trim().isEmpty ? Colors.white24 : _accentColor),
+                        icon: Icon(Icons.send_rounded, color: _speakController.text.trim().isEmpty ? Colors.white24 : _accentCyan),
                         onPressed: _speakController.text.trim().isEmpty ? null : _sendPuppeteerMessage,
                       ),
               ],

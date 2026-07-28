@@ -910,4 +910,85 @@ body {
     font-size: 14px;
     letter-spacing: 2px;
     color: var(--muted-white);
-}
+}
+
+/* ---------------- SETUP/PROVISIONING SCREEN ---------------- */
+#setup-screen {
+    position: fixed;
+    inset: 0;
+    background: #000000;
+    z-index: 9500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.8s ease, visibility 0.8s ease;
+}
+
+#setup-screen.visible {
+    opacity: 1;
+    visibility: visible;
+}
+
+.setup-content {
+    width: 500px;
+    padding: 40px;
+    text-align: center;
+    border: 1px solid rgba(255, 216, 107, 0.45);
+    background: rgba(0, 0, 0, 0.82);
+    backdrop-filter: blur(15px);
+    border-radius: 28px;
+    box-shadow:
+        0 0 30px rgba(255, 216, 107, 0.22),
+        0 0 70px rgba(255, 216, 107, 0.12);
+}
+
+.setup-content h2 {
+    font-family: 'Cinzel', serif;
+    color: var(--gold);
+    letter-spacing: 2px;
+    font-size: 28px;
+    margin-top: 0;
+    margin-bottom: 20px;
+    text-shadow: 0 0 10px rgba(255, 216, 107, 0.5);
+}
+
+.setup-content p {
+    font-size: 18px;
+    color: var(--soft-white);
+    line-height: 1.6;
+    margin-bottom: 24px;
+}
+
+.wifi-info {
+    background: rgba(255, 216, 107, 0.05);
+    border: 1px solid rgba(255, 216, 107, 0.2);
+    padding: 16px 24px;
+    border-radius: 12px;
+    font-size: 18px;
+    color: var(--main-white);
+    margin-bottom: 28px;
+    text-align: left;
+    display: inline-block;
+}
+
+.wifi-info strong {
+    color: var(--gold);
+}
+
+#qrcode-container {
+    background: white;
+    padding: 16px;
+    border-radius: 16px;
+    display: inline-block;
+    margin-bottom: 24px;
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.15);
+}
+
+#qrcode-container img {
+    display: block;
+    width: 200px;
+    height: 200px;
+}
+

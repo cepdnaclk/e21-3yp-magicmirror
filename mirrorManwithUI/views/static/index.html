@@ -24,6 +24,24 @@
         </div>
     </div>
 
+    <!-- Wi-Fi Setup Screen: appears when the system is offline and waiting for provisioning -->
+    <div id="setup-screen">
+        <div class="setup-content">
+            <h2>📡 Setup ReflectStudio</h2>
+            <p>Please connect your phone to the mirror's Wi-Fi network and open the mobile app:</p>
+            <div class="wifi-info">
+                <strong>SSID:</strong> <span id="setup-ssid">ReflectStudio_Setup</span><br>
+                <strong>Password:</strong> <span id="setup-password">reflectstudio123</span>
+            </div>
+            <div>
+                <div id="qrcode-container">
+                    <img id="setup-qr" src="" alt="WiFi Setup QR Code">
+                </div>
+            </div>
+            <p class="status-text" id="setup-status">Waiting for mobile app connection...</p>
+        </div>
+    </div>
+
     <div id="mirror-wrapper" class="black-out">
         <div id="ui-layer">
 
@@ -366,6 +384,24 @@
             }
 
             // --- New JSON protocol from ai_bot.py ---
+            // {"type": "setup_mode", "status": "offline" | "online", "ssid": "...", "password": "..."}
+            if (payload && payload.type === 'setup_mode') {
+                const setupScreen = document.getElementById('setup-screen');
+                if (payload.status === 'offline') {
+                    document.getElementById('setup-ssid').innerText = payload.ssid;
+                    document.getElementById('setup-password').innerText = payload.password;
+                    
+                    // Generate QR Code dynamically using free QR Code API
+                    const qrData = encodeURIComponent(`WIFI:S:${payload.ssid};T:WPA;P:${payload.password};;`);
+                    document.getElementById('setup-qr').src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${qrData}`;
+                    
+                    setupScreen.classList.add('visible');
+                } else {
+                    setupScreen.classList.remove('visible');
+                }
+                return;
+            }
+
             // {"type": "mirror_show", "status": "active"}
             if (payload && payload.type === 'mirror_show') {
                 mirrorActive = true;

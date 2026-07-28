@@ -1,6 +1,7 @@
 import os
 import json
-from fastapi import WebSocket, WebSocketDisconnect
+import threading
+from fastapi import WebSocket, WebSocketDisconnect, Request
 from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
 
 from models.app_state import notifications, priority_schedule
@@ -10,6 +11,37 @@ from config.aws_config import get_s3_client
 
 def register_routes(app, bot, manager):
     """Attach all HTTP and WebSocket routes to the FastAPI app."""
+
+    @app.post("/api/wifi-setup")
+    async def wifi_setup(request: Request):
+        try:
+            body = await request.json()
+            ssid = body.get("ssid")
+            password = body.get("password")
+            if not ssid or not password:
+                return JSONResponse(
+                    status_code=400,
+                    content={"status": "error", "message": "SSID and Password are required"}
+                )
+            
+            print(f"📡 [WiFi Provisioner] Received Wi-Fi credentials for: SSID='{ssid}'", flush=True)
+            
+            def attempt_connection():
+                # Import here to avoid circular dependencies
+                from services.wifi_provisioner import connect_to_wifi
+                # Introduce a tiny delay so the HTTP response goes through before network settings change
+                import time
+                time.sleep(2)
+                success, msg = connect_to_wifi(ssid, password)
+                if success:
+                    print(f"✅ [WiFi Provisioner] Connection to '{ssid}' succeeded!", flush=True)
+                else:
+                    print(f"❌ [WiFi Provisioner] Connection to '{ssid}' failed: {msg}", flush=True)
+            
+            threading.Thread(target=attempt_connection, daemon=True).start()
+            return {"status": "success", "message": "Connection attempt started. The mirror will switch networks shortly."}
+        except Exception as e:
+            return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
 
     @app.get("/api/presence/{status}")
     async def presence_trigger(status: str):

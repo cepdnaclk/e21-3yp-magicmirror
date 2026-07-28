@@ -68,6 +68,10 @@ async def startup_event():
     asyncio.create_task(bot.run())
     asyncio.create_task(check_s3_inbox())
     asyncio.create_task(run_periodic_face_indexing())
+    
+    # Start the Wi-Fi network provisioning monitor
+    from services.wifi_provisioner import network_monitor
+    asyncio.create_task(network_monitor(manager))
 
 @app.on_event("shutdown")
 async def shutdown_event():
@@ -107,5 +111,5 @@ if __name__ == "__main__":
     # so it doesn't block the Uvicorn server startup.
     threading.Thread(target=open_browser, daemon=True).start()
 
-    # Use host="127.0.0.1" so the logs show the correct clickable address
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    # Use host="0.0.0.0" so external devices (mobile app) can access the API
+    uvicorn.run(app, host="0.0.0.0", port=8000)
