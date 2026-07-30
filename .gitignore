@@ -1,0 +1,35 @@
+﻿# Environment
+venv/
+env/
+.venv/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# IDEs
+.vscode/
+.idea/
+
+# Large binaries
+mirrorManwithUI/ffmpeg.exe
+mirrorManwithUI/ffplay.exe
+*.exe
+
+# Mobile app
+mobile_app/build/
+mobile_app/.dart_tool/
+mobile_app/amplifyconfiguration.dart
+mobile_app/awsconfiguration.json
+
+# Architecture generated files
+ACTIVITY_DIAGRAMS.md
+ARCHITECTURE.md
+activity_uc1_proximity_emotion.png
+activity_uc2_voice_ai_media.png
+activity_uc3_reminder_sync.png
+activity_uc4_face_enrollment.png
+architecture.html
+architecture_diagram.png
+overall_architecture.png

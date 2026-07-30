@@ -1,0 +1,130 @@
+:root {
+    --gold: #FFD700;
+    --cyan: #00f2ff;
+    --bg-black: #000000;
+}
+
+body {
+    background-color: var(--bg-black);
+    color: white;
+    font-family: 'Inter', 'Noto Sans Sinhala', sans-serif;
+    margin: 0;
+    overflow: hidden;
+    height: 100vh;
+}
+
+/* Header */
+.header {
+    position: absolute;
+    top: 40px;
+    width: 100%;
+    text-align: center;
+}
+
+#clock {
+    font-size: 140px;
+    font-weight: 800;
+    line-height: 1;
+    text-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+}
+
+#date-en {
+    font-size: 38px;
+    color: var(--gold);
+    margin-top: 10px;
+}
+
+/* Avatar Zone */
+#assistant-zone {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    transition: opacity 0.8s ease-in-out;
+}
+
+.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+#avatar-container {
+    filter: drop-shadow(0 0 30px var(--cyan));
+}
+
+#status-text {
+    font-size: 40px;
+    color: var(--cyan);
+    text-shadow: 0 0 10px rgba(0, 242, 255, 0.5);
+    margin-top: 20px;
+}
+
+/* Footer Cards */
+.footer {
+    position: absolute;
+    bottom: 50px;
+    width: 90%;
+    left: 5%;
+    display: flex;
+    justify-content: space-between;
+}
+
+.card {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 25px 40px;
+    border-radius: 30px;
+    border-left: 10px solid var(--gold);
+    min-width: 400px;
+}
+
+.card-icon {
+    font-size: 45px;
+    display: block;
+    margin-bottom: 10px;
+}
+
+.card-label {
+    font-size: 18px;
+    color: #aaa;
+    letter-spacing: 1px;
+}
+
+.card-content {
+    font-size: 32px;
+    font-weight: bold;
+    margin-top: 5px;
+}
+
+/* Main section that controls the entire UI */
+#mirror-ui {
+    transition: all 0.8s ease-in-out;
+    opacity: 1;
+}
+
+/* Fade out everything else when the assistant appears */
+.assistant-active #mirror-ui>.header,
+.assistant-active #mirror-ui>.footer {
+    opacity: 0;
+    transform: translateY(-20px);
+    /* Move slightly upwards and fade out */
+    pointer-events: none;
+}
+
+/* Assistant display zone */
+#assistant-zone {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 100;
+    transition: all 0.8s ease;
+    opacity: 0;
+    visibility: hidden;
+}
+
+/* Appearance when the assistant wakes up */
+#assistant-zone.active {
+    opacity: 1;
+    visibility: visible;
+}

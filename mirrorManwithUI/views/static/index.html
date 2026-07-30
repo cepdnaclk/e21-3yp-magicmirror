@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reflect Studio | Smart Mirror</title>
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600&family=Cormorant+Garamond:wght@400;500;600;700&family=Lora:wght@400;500;600&display=swap"
+        rel="stylesheet">
+
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+
+<body>
+
+    <!-- Welcome Screen: appears once when the mirror system starts -->
+    <div id="welcome-screen">
+        <div class="welcome-content">
+            <div class="welcome-heart">♡</div>
+            <h1>Reflect Studio</h1>
+            <p>Good to see you</p>
+        </div>
+    </div>
+
+    <div id="mirror-wrapper">
+        <div id="ui-layer">
+
+            <div class="widget top-left combined-left-container">
+                <div class="glass-card" id="time-container">
+                    <div class="cyan-glow-text greeting-title">
+                        Good Day <span class="heart-icon">♡</span>
+                    </div>
+
+                    <h1 id="clock">00:00:00</h1>
+                    <p id="date">Initializing...</p>
+                    <p id="gentle-message">Have a lovely day</p>
+                </div>
+
+                <div class="glass-card calendar-widget">
+                    <div class="cyan-glow-text" id="month-name">Month View</div>
+                    <div id="calendar-grid"></div>
+                </div>
+            </div>
+
+            <div class="widget top-right glass-card">
+                <div class="cyan-glow-text">Weather</div>
+
+                <div id="weather-box">
+                    <h2 id="temp">--°C</h2>
+                    <p id="desc" class="status-text">Fetching weather...</p>
+                    <p id="hum">Humidity: --%</p>
+
+                    <div id="weather-suggestion">
+                        Weather suggestion...
+                    </div>
+                </div>
+            </div>
+
+            <div class="widget bottom-right glass-card">
+                <h3 class="cyan-glow-text">Today</h3>
+                <ul id="calendar-list"></ul>
+            </div>
+
+        </div>
+
+        <div id="big-popup" class="glass-card">
+            <div class="cyan-glow-text">Message</div>
+            <div id="popup-text"></div>
+        </div>
+
+        <div id="video-layer">
+            <video id="mirror-video" loop muted playsinline>
+                <!-- src set dynamically by JS with cache-busting -->
+            </video>
+        </div>
+
+        <div class="widget bottom-left glass-card" id="notification-container">
+            <div class="cyan-glow-text">Messages</div>
+            <div id="notification-content">
+                <p class="status-text">No new messages</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ PHOTO GALLERY OVERLAY ============ -->
+    <div id="photo-gallery-overlay" aria-label="Family Photo Gallery">
+
+        <!-- Header -->
+        <div id="gallery-header">
+            <span id="gallery-title">📸 &nbsp;Family Memories</span>
+            <span id="gallery-photo-count"></span>
+        </div>
+
+        <!-- Fullscreen slide stage -->
+        <div id="gallery-stage">
+            <!-- Slides injected by JS -->
+
+            <!-- Navigation arrows -->
+            <button id="gallery-prev" aria-label="Previous photo">‹</button>
+            <button id="gallery-next" aria-label="Next photo">›</button>
+
+            <!-- Dot indicators -->
+            <div id="gallery-dots"></div>
+
+            <!-- Dismiss hint -->
+            <div id="gallery-hint">Say “close photos” to close</div>
+
+            <!-- Progress bar -->
+            <div id="gallery-progress-wrap">
+                <div id="gallery-progress-bar"></div>
+            </div>
+        </div>
+
+        <!-- Loading state -->
+        <div id="gallery-loader">
+            <div class="gallery-spinner"></div>
+            <p>Loading photos…</p>
+        </div>
+
+        <!-- Empty state -->
+        <div id="gallery-empty">
+            <div class="empty-icon">🖼️</div>
+            <p>No photos yet.<br>Upload some from your app!</p>
+        </div>
+
+    </div>
+    <!-- ================================================ -->
+
+    <script>
+        // Cache-buster: forces the browser to re-fetch videos after every
+        // git pull / file change. Change this string any time you replace
+        // a video file and the browser still shows the old one.
+        const VER = Date.now();
+
+        // Helper: return a video URL with the cache-buster appended
+        function vidSrc(name) { return 'static/' + name + '?v=' + VER; }
+
+        // Set the default idle video on load (cache-busted)
+        (function() {
+            const v = document.getElementById('mirror-video');
+            v.src = vidSrc('idle.mp4');
+        })();
+
+        function updateTime() {
+            const now = new Date();
+
+            document.getElementById('clock').innerText =
+                now.toLocaleTimeString('en-US', { hour12: false });
+
+            document.getElementById('date').innerText =
+                now.toLocaleDateString('en-US', {
+                    weekday: 'long',
+                    month: 'long',
+                    day: 'numeric',
+                    year: 'numeric'
+                });
+        }
+
+        setInterval(updateTime, 1000);
+        updateTime();
+
+        const socket = new WebSocket('ws://' + window.location.host + '/ws');
+
+        function addScheduleItem(item) {
+            const list = document.getElementById('calendar-list');
+
+            const time        = item.time        || '--:--';
+            const name        = item.reason      || item.name || 'Untitled';
+            const date        = item.date        || 'Today';
+            const expiryEpoch = item.expiry_epoch || '';
+            const itemId      = item.id ? `reminder-${item.id}` : `reminder-${Date.now()}`;
+
+            const li = document.createElement('li');
+            li.id   = itemId;
+            if (expiryEpoch) li.dataset.expiry = expiryEpoch;
+            li.innerHTML = `<span class="time-tag">${time}</span> ${name}
+                            <span class="schedule-meta">${date}</span>`;
+            list.appendChild(li);
+        }
+
+        // Rebuild the entire reminder/schedule box from a live DynamoDB list
+        function syncReminderList(items) {
+            const list = document.getElementById('calendar-list');
+            list.innerHTML = '';
+            if (!items || items.length === 0) {
+                list.innerHTML = '<li style="color:var(--muted-white);font-size:15px;">No upcoming reminders</li>';
+                return;
+            }
+            items.forEach(item => addScheduleItem(item));
+        }
+
+        // Every 60 s: remove any list items whose scheduled time has passed
+        setInterval(() => {
+            const now = Date.now();
+            document.querySelectorAll('#calendar-list li[data-expiry]').forEach(li => {
+                const expiry = parseInt(li.dataset.expiry, 10);
+                if (expiry && now > expiry) {
+                    li.style.transition = 'opacity 0.6s ease';
+                    li.style.opacity   = '0';
+                    setTimeout(() => {
+                        li.remove();
+                        const list = document.getElementById('calendar-list');
+                        if (list && list.children.length === 0) {
+                            list.innerHTML = '<li style="color:var(--muted-white);font-size:15px;">No upcoming reminders</li>';
+                        }
+                    }, 650);
+                }
+            });
+        }, 60000);
+
+        let mirrorActive = false;
+        let userIsPresent = false;
+        let activeMessage = null;
+        let activeMsgState = null; // 'FULLSCREEN' or 'NOTIFICATION_BOX'
+        let activeMsgTimer = null;
+        let userHasBeenPresentWithBoxMsg = false;
+
+        function clearActiveMsgTimer() {
+            if (activeMsgTimer) {
+                clearTimeout(activeMsgTimer);
+                activeMsgTimer = null;
+            }
+        }
+
+        function displayFullscreen(text, durationSeconds) {
+            const popup = document.getElementById('big-popup');
+            const wrapper = document.getElementById('mirror-wrapper');
+            
+            // Remove blackout so the fullscreen popup is visible
+            wrapper.classList.remove('black-out');
+            
+            popup.innerHTML = `
+                <div class="cyan-glow-text">Message</div>
+                <div id="popup-text">${text}</div>
+                <div class="progress-container">
+                    <div class="progress-bar" style="animation: shrink ${durationSeconds}s linear forwards;"></div>
+                </div>
+            `;
+            popup.classList.add('show');
+        }
+
+        function hideFullscreen() {
+            const popup = document.getElementById('big-popup');
+            popup.classList.remove('show');
+        }
+
+        function showNotificationInBox(text) {
+            const notifyBox = document.getElementById('notification-content');
+            const timestamp = new Date().toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false
+            });
+            
+            if (notifyBox.innerText.includes("No new messages")) {
+                notifyBox.innerHTML = "";
+            }
+            
+            notifyBox.innerHTML = ""; // Show only the current message
+            
+            const newEntry = document.createElement('div');
+            newEntry.className = 'history-item';
+            newEntry.id = 'active-box-msg';
+            newEntry.innerHTML = `<span style="color:var(--gold)">[${timestamp}]</span> ${text}`;
+            notifyBox.appendChild(newEntry);
+        }
+
+        function clearNotificationBox() {
+            const notifyBox = document.getElementById('notification-content');
+            notifyBox.innerHTML = '<p class="status-text">No new messages</p>';
+        }
+
+        function updateBlackoutState() {
+            const wrapper = document.getElementById('mirror-wrapper');
+            const v = document.getElementById('mirror-video');
+            if (userIsPresent) {
+                wrapper.classList.remove('black-out');
+            } else {
+                if (activeMsgState === 'FULLSCREEN') {
+                    wrapper.classList.remove('black-out');
+                } else {
+                    wrapper.classList.add('black-out');
+                    v.pause();
+                }
+            }
+        }
+
+        socket.onmessage = (event) => {
+            const v = document.getElementById('mirror-video');
+            const wrapper = document.getElementById('mirror-wrapper');
+            const uiLayer = document.getElementById('ui-layer');
+            const videoLayer = document.getElementById('video-layer');
+            const notifyBox = document.getElementById('notification-content');
+            const popup = document.getElementById('big-popup');
+
+            let payload = null;
+
+            try {
+                payload = JSON.parse(event.data);
+            } catch {
+                payload = event.data;
+            }
+
+            // --- Legacy plain-string protocol (backward compat) ---
+            if (typeof payload === 'string') {
+                if (payload === 'show_mirror') {
+                    mirrorActive = true;
+                    uiLayer.classList.add('hidden');
+                    videoLayer.classList.add('visible');
+                    if (!v.src.includes('idle.mp4')) { v.src = vidSrc('idle.mp4'); }
+                    v.play();
+                    return;
+                }
+                if (payload === 'hide_mirror') {
+                    mirrorActive = false;
+                    videoLayer.classList.remove('visible');
+                    uiLayer.classList.remove('hidden');
+                    v.pause();
+                    return;
+                }
+                if (payload === 'idle') {
+                    if (mirrorActive) {
+                        if (!v.src.includes('idle.mp4')) { v.src = vidSrc('idle.mp4'); }
+                        v.play();
+                    }
+                    return;
+                }
+                if (payload === 'thinking') {
+                    if (!v.src.includes('thinking.mp4')) { v.src = vidSrc('thinking.mp4'); v.play(); }
+                    return;
+                }
+                if (payload === 'talking') {
+                    if (!v.src.includes('talking.mp4')) { v.src = vidSrc('talking.mp4'); v.play(); }
+                    return;
+                }
+                return;
+            }
+
+            // --- New JSON protocol from ai_bot.py ---
+            // {"type": "mirror_show", "status": "active"}
+            if (payload && payload.type === 'mirror_show') {
+                mirrorActive = true;
+                uiLayer.classList.add('hidden');
+                videoLayer.classList.add('visible');
+                if (!v.src.includes('idle.mp4')) { v.src = 'static/idle.mp4'; }
+                v.play();
+                return;
+            }
+
+            // {"type": "mirror_hide", "status": "sleep"}
+            if (payload && payload.type === 'mirror_hide') {
+                mirrorActive = false;
+                videoLayer.classList.remove('visible');
+                uiLayer.classList.remove('hidden');
+                v.pause();
+                return;
+            }
+
+            // {"type": "video", "state": "idle" | "talking" | "thinking"}
+            if (payload && payload.type === 'video') {
+                const state = payload.state;
+                if (state === 'idle') {
+                    if (mirrorActive) {
+                        if (!v.src.includes('idle.mp4')) { v.src = vidSrc('idle.mp4'); }
+                        v.play();
+                    }
+                    return;
+                }
+                if (state === 'talking') {
+                    if (!v.src.includes('talking.mp4')) { v.src = vidSrc('talking.mp4'); v.play(); }
+                    return;
+                }
+                if (state === 'thinking') {
+                    if (!v.src.includes('thinking.mp4')) { v.src = vidSrc('thinking.mp4'); v.play(); }
+                    return;
+                }
+                return;
+            }
+
+            // {"type": "status", "state": "thinking" | "listening" | "idle"}
+            if (payload && payload.type === 'status') {
+                // Status messages are informational; map to the matching video state
+                const state = payload.state;
+                if (state === 'thinking') {
+                    if (!v.src.includes('thinking.mp4')) { v.src = 'static/thinking.mp4'; v.play(); }
+                }
+                return;
+            }
+
+            if (payload && payload.type === 'presence') {
+                const isPresent = payload.value === 'present';
+                userIsPresent = isPresent;
+
+                if (isPresent) {
+                    if (activeMessage && activeMsgState === 'FULLSCREEN') {
+                        // Reset timer to 10 seconds since they just appeared
+                        clearActiveMsgTimer();
+                        displayFullscreen(activeMessage, 10);
+                        activeMsgTimer = setTimeout(() => {
+                            hideFullscreen();
+                            activeMessage = null;
+                            activeMsgState = null;
+                            updateBlackoutState();
+                        }, 10000);
+                    } else if (activeMessage && activeMsgState === 'NOTIFICATION_BOX') {
+                        userHasBeenPresentWithBoxMsg = true;
+                    }
+                } else {
+                    if (activeMessage && activeMsgState === 'NOTIFICATION_BOX' && userHasBeenPresentWithBoxMsg) {
+                        clearNotificationBox();
+                        activeMessage = null;
+                        activeMsgState = null;
+                        userHasBeenPresentWithBoxMsg = false;
+                    }
+                }
+
+                updateBlackoutState();
+                return;
+            }
+
+            if (payload && payload.type === 'notification') {
+                const rawMsg = payload.message;
+
+                clearActiveMsgTimer();
+                hideFullscreen();
+                clearNotificationBox();
+
+                activeMessage = rawMsg;
+                activeMsgState = 'FULLSCREEN';
+                userHasBeenPresentWithBoxMsg = false;
+
+                if (userIsPresent) {
+                    displayFullscreen(rawMsg, 10);
+                    activeMsgTimer = setTimeout(() => {
+                        hideFullscreen();
+                        activeMessage = null;
+                        activeMsgState = null;
+                        updateBlackoutState();
+                    }, 10000);
+                } else {
+                    displayFullscreen(rawMsg, 1800); // 30 minutes
+                    activeMsgTimer = setTimeout(() => {
+                        hideFullscreen();
+                        activeMsgState = 'NOTIFICATION_BOX';
+                        showNotificationInBox(rawMsg);
+                        updateBlackoutState();
+                    }, 1800000); // 30 minutes
+                }
+
+                updateBlackoutState();
+                return;
+            }
+
+            if (payload && payload.type === 'reminder') {
+                const rawMsg = payload.message;
+
+                displayFullscreen(rawMsg, 10);
+                setTimeout(() => {
+                    hideFullscreen();
+
+                    try {
+                        let namePart = "Untitled";
+                        let datePart = "Today";
+                        let timePart = "Now";
+
+                        if (rawMsg.includes("👉")) {
+                            let parts = rawMsg.split("👉");
+
+                            namePart = parts[1] ? parts[1].trim() : "Untitled";
+
+                            let dateTimePart =
+                                parts[0].replace(/📅 |Upcoming: /gi, "").trim();
+
+                            let dateTimeSplit = dateTimePart.split(/ at /i);
+
+                            datePart = dateTimeSplit[0]
+                                ? dateTimeSplit[0].trim()
+                                : "Today";
+
+                            timePart = dateTimeSplit[1]
+                                ? dateTimeSplit[1].trim()
+                                : "Now";
+                        } else {
+                            namePart = rawMsg;
+                        }
+
+                        addScheduleItem({
+                            time: timePart,
+                            name: namePart,
+                            date: datePart
+                        });
+                    } catch (e) {
+                        addScheduleItem({
+                            time: 'Now',
+                            name: rawMsg,
+                            date: 'Today'
+                        });
+                    }
+                }, 10000);
+
+            }
+
+            // ── DynamoDB live reminder list ─────────────────────────────
+            if (payload && payload.type === 'reminder_list') {
+                syncReminderList(payload.items);
+                return;
+            }
+
+            // ── Photo gallery ───────────────────────────────────────────
+            if (payload && payload.type === 'show_photos') {
+                Gallery.open();
+                return;
+            }
+            if (payload && payload.type === 'hide_photos') {
+                Gallery.close();
+                return;
+            }
+
+        };
+
+        async function updateMirrorData() {
+            try {
+                const response = await fetch('/api/weather');
+                const result = await response.json();
+
+                if (result.status !== "success") {
+                    console.log("Weather unavailable. Keeping previous weather on screen.");
+                    return;
+                }
+
+                const weather = result.data;
+
+                document.getElementById('temp').innerText =
+                    `${weather.temperature}°C`;
+
+                document.getElementById('hum').innerText =
+                    `Humidity: ${weather.humidity}%`;
+
+                document.getElementById('desc').innerText =
+                    weather.condition;
+
+                if (weather.suggestions && weather.suggestions.length > 0) {
+                    document.getElementById('weather-suggestion').innerText =
+                        weather.suggestions[0].message;
+                }
+
+            } catch (e) {
+                console.log("Weather fetch error. Keeping previous weather on screen:", e);
+            }
+        }
+
+        function buildCalendar() {
+            const now = new Date();
+
+            const month = now.getMonth();
+            const year = now.getFullYear();
+
+            const monthNames = [
+                "January", "February", "March", "April",
+                "May", "June", "July", "August",
+                "September", "October", "November", "December"
+            ];
+
+            document.getElementById('month-name').innerText =
+                `${monthNames[month]} ${year}`;
+
+            const grid = document.getElementById('calendar-grid');
+
+            grid.innerHTML = '';
+
+            const dayHeaders = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+            dayHeaders.forEach(day => {
+                const header = document.createElement('div');
+                header.innerText = day;
+                header.classList.add('grid-header');
+                grid.appendChild(header);
+            });
+
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+            for (let i = 0; i < firstDay; i++) {
+                grid.appendChild(document.createElement('div'));
+            }
+
+            for (let d = 1; d <= daysInMonth; d++) {
+                const div = document.createElement('div');
+
+                div.innerText = d;
+                div.classList.add('calendar-day');
+
+                if (d === now.getDate()) {
+                    div.classList.add('today');
+                }
+
+                grid.appendChild(div);
+            }
+        }
+
+        buildCalendar();
+        updateMirrorData();
+        setInterval(updateMirrorData, 600000);
+
+        window.addEventListener("load", () => {
+            const welcomeScreen = document.getElementById("welcome-screen");
+
+            setTimeout(() => {
+                if (welcomeScreen) {
+                    welcomeScreen.classList.add("hide-welcome");
+                }
+            }, 4000);
+        });
+
+        // =====================================================
+        //  PHOTO GALLERY CONTROLLER
+        // =====================================================
+        const Gallery = (() => {
+            const SLIDE_DURATION_MS = 8000;   // ms each photo is shown
+            const AUTO_CLOSE_MS     = 90000;  // auto-close after 90 s
+            const MAX_PHOTOS        = 10;     // cap to protect RPi memory
+            const KB_CLASSES = ['kb-zoom-in', 'kb-pan-right', 'kb-pan-left', 'kb-zoom-out'];
+
+            let photos        = [];   // [{key, url}, ...]
+            let currentIndex  = 0;
+            let slideTimer    = null;
+            let autoCloseTimer = null;
+            let progressTimer  = null;
+            let singleSlide   = null; // only ONE slide DOM node reused
+
+            // DOM refs
+            const overlay     = () => document.getElementById('photo-gallery-overlay');
+            const stage       = () => document.getElementById('gallery-stage');
+            const dotsWrap    = () => document.getElementById('gallery-dots');
+            const countEl     = () => document.getElementById('gallery-photo-count');
+            const progressBar = () => document.getElementById('gallery-progress-bar');
+            const loader      = () => document.getElementById('gallery-loader');
+            const empty       = () => document.getElementById('gallery-empty');
+
+            function _showLoader(yes) { loader().style.display = yes ? 'flex' : 'none'; }
+            function _showEmpty(yes)  { empty().style.display  = yes ? 'flex' : 'none'; }
+
+            // LAZY: Create only ONE slide element and swap its background per photo
+            function _ensureSlide() {
+                if (!singleSlide) {
+                    singleSlide = document.createElement('div');
+                    singleSlide.className = 'gallery-slide';
+                    stage().insertBefore(singleSlide, document.getElementById('gallery-prev'));
+                }
+            }
+
+            function _buildDots() {
+                dotsWrap().innerHTML = '';
+                photos.forEach((_, i) => {
+                    const dot = document.createElement('button');
+                    dot.className = 'gallery-dot';
+                    dot.setAttribute('aria-label', `Photo ${i + 1}`);
+                    dot.addEventListener('click', () => _goTo(i));
+                    dotsWrap().appendChild(dot);
+                });
+            }
+
+            function _updateDots() {
+                dotsWrap().querySelectorAll('.gallery-dot').forEach((d, i) => {
+                    d.classList.toggle('dot-active', i === currentIndex);
+                });
+                countEl().textContent = `${currentIndex + 1} / ${photos.length}`;
+            }
+
+            // LAZY: Only load the current photo's URL into the single slide node
+            function _activateSlide(index) {
+                _ensureSlide();
+                const photo = photos[index];
+                if (!photo) return;
+
+                // Swap the background image — only THIS photo is downloaded now
+                singleSlide.style.backgroundImage = `url('${photo.url}')`;
+
+                // Remove all Ken Burns classes, force reflow, re-add one
+                KB_CLASSES.forEach(c => singleSlide.classList.remove(c));
+                singleSlide.classList.remove('active');
+                void singleSlide.offsetWidth; // force reflow to restart CSS animation
+                const kb = KB_CLASSES[index % KB_CLASSES.length];
+                singleSlide.classList.add('active', kb);
+
+                _updateDots();
+                _startProgressBar();
+            }
+
+            function _startProgressBar() {
+                const bar = progressBar();
+                if (!bar) return;
+                clearTimeout(progressTimer);
+                bar.style.transition = 'none';
+                bar.style.width = '100%';
+                void bar.offsetWidth;
+                bar.style.transition = `width ${SLIDE_DURATION_MS}ms linear`;
+                bar.style.width = '0%';
+            }
+
+            function _goTo(index) {
+                currentIndex = (index + photos.length) % photos.length;
+                _activateSlide(currentIndex);
+                _scheduleNext();
+            }
+
+            function _scheduleNext() {
+                clearTimeout(slideTimer);
+                slideTimer = setTimeout(() => {
+                    currentIndex = (currentIndex + 1) % photos.length;
+                    _activateSlide(currentIndex);
+                    _scheduleNext();
+                }, SLIDE_DURATION_MS);
+            }
+
+            function _clearTimers() {
+                clearTimeout(slideTimer);
+                clearTimeout(autoCloseTimer);
+                clearTimeout(progressTimer);
+                slideTimer = null;
+                autoCloseTimer = null;
+                progressTimer = null;
+            }
+
+            async function open() {
+                overlay().classList.add('gallery-visible');
+                _showLoader(true);
+                _showEmpty(false);
+
+                try {
+                    const res  = await fetch('/api/photos');
+                    const data = await res.json();
+                    // Cap to MAX_PHOTOS to protect RPi from memory overload
+                    photos = (data.photos || []).slice(0, MAX_PHOTOS);
+                } catch (e) {
+                    console.error('Gallery: failed to fetch photos', e);
+                    photos = [];
+                }
+
+                _showLoader(false);
+
+                if (photos.length === 0) {
+                    _showEmpty(true);
+                    autoCloseTimer = setTimeout(close, 8000);
+                    return;
+                }
+
+                currentIndex = 0;
+                _buildDots();
+                _activateSlide(0); // only loads photo[0] — lazy!
+                _scheduleNext();
+
+                autoCloseTimer = setTimeout(close, AUTO_CLOSE_MS);
+            }
+
+            function close() {
+                _clearTimers();
+                overlay().classList.remove('gallery-visible');
+
+                setTimeout(() => {
+                    if (singleSlide) {
+                        singleSlide.remove();
+                        singleSlide = null;
+                    }
+                    dotsWrap().innerHTML = '';
+                    countEl().textContent = '';
+                    photos = [];
+                }, 900);
+            }
+
+            document.addEventListener('DOMContentLoaded', () => {
+                document.getElementById('gallery-prev').addEventListener('click', () => _goTo(currentIndex - 1));
+                document.getElementById('gallery-next').addEventListener('click', () => _goTo(currentIndex + 1));
+            });
+
+            return { open, close };
+        })();
+        // =====================================================
+    </script>
+</body>
+
+</html>

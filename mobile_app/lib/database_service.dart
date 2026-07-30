@@ -9,6 +9,9 @@ class DatabaseService {
   late MqttServerClient _mqttClient;
   final StreamController<List<Map<String, dynamic>>> _sensorStreamCtrl = StreamController.broadcast();
 
+  // 👇 REPLACE THIS WITH YOUR AWS IOT CORE ENDPOINT 👇
+  static const String iotEndpoint = 'your-iot-endpoint.iot.us-east-1.amazonaws.com';
+
   DatabaseService() {
     _initMqtt();
   }
@@ -16,7 +19,8 @@ class DatabaseService {
   // --- 1. AWS IOT CORE (MQTT) SETUP ---
   Future<void> _initMqtt() async {
     // Replace with your actual AWS IoT Core Endpoint
-    _mqttClient = MqttServerClient('your-iot-endpoint.iot.us-east-1.amazonaws.com', 'flutter_client');
+    final clientId = 'flutter_client_${DateTime.now().millisecondsSinceEpoch}';
+    _mqttClient = MqttServerClient(iotEndpoint, clientId);
     _mqttClient.port = 8883;
     _mqttClient.secure = true;
     _mqttClient.logging(on: false);

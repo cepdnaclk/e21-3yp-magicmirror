@@ -1,0 +1,19 @@
+opencv-python
+boto3
+python-dotenv
+# picamera2 (Note: Install this manually only when running on the Raspberry Pi)
+pyserial
+requests
+SpeechRecognition
+edge-tts
+yt-dlp
+numpy
+PyAudio
+pyttsx3
+uvicorn
+google-genai
+fastapi
+websockets
+flask
+pygame
+gTTS

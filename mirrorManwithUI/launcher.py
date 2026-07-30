@@ -1,19 +1,32 @@
 import subprocess
 import time
 import sys
+import os
 
 def start_mirror_system():
     print("?? ReflectStudio ??????? ??????????...")
+
+    # Get the absolute path to the directory containing this script (mirrorManwithUI)
+    base_dir = os.path.dirname(os.path.abspath(__file__))
     
-    # 1. UI ?? WebSocket ????????? (main.py) ????? ?????
-    ui_proc = subprocess.Popen([sys.executable, "main.py"])
+    # Path to the virtual environment python executable
+    if sys.platform.startswith("win"):
+        venv_python = os.path.join(base_dir, "..", "venv", "Scripts", "python.exe")
+    else:
+        venv_python = os.path.join(base_dir, "..", "venv", "bin", "python")
+    
+    # Use venv_python if it exists, otherwise fallback to sys.executable
+    python_exe = venv_python if os.path.exists(venv_python) else sys.executable
+
+    # 1. UI ?? WebSocket ????????? (app.py) ????? ?????
+    ui_proc = subprocess.Popen([python_exe, "app.py"], cwd=base_dir)
     print("? Mirror UI ?? ??????? ????.")
-    
+
     # UI ?? ??????? ???? ????? 5?? ??????
     time.sleep(5)
-    
+
     # 2. Vision Engine ?? ????? ?????
-    vision_proc = subprocess.Popen([sys.executable, "vision_engine.py"])
+    vision_proc = subprocess.Popen([python_exe, "-m", "services.vision_engine"], cwd=base_dir)
     print("? Vision Engine ?? ??????? ????.")
 
     try:
