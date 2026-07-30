@@ -391,32 +391,61 @@
 
             if (payload && payload.type === 'presence') {
                 const isPresent = payload.value === 'present';
-                userIsPresent = isPresent;
 
                 if (isPresent) {
-                    if (activeMessage && activeMsgState === 'FULLSCREEN') {
-                        // Reset timer to 10 seconds since they just appeared
-                        clearActiveMsgTimer();
-                        displayFullscreen(activeMessage, 10);
-                        activeMsgTimer = setTimeout(() => {
-                            hideFullscreen();
-                            activeMessage = null;
-                            activeMsgState = null;
+                    // Cancel absence timer if user returned / is detected
+                    if (absenceTimer) {
+                        clearTimeout(absenceTimer);
+                        absenceTimer = null;
+                    }
+
+                    // If user is not yet present, start 5s continuous verification timer
+                    if (!userIsPresent && !presenceTimer) {
+                        presenceTimer = setTimeout(() => {
+                            userIsPresent = true;
+                            presenceTimer = null;
+
+                            if (activeMessage && activeMsgState === 'FULLSCREEN') {
+                                clearActiveMsgTimer();
+                                displayFullscreen(activeMessage, 10);
+                                activeMsgTimer = setTimeout(() => {
+                                    hideFullscreen();
+                                    activeMessage = null;
+                                    activeMsgState = null;
+                                    updateBlackoutState();
+                                }, 10000);
+                            } else if (activeMessage && activeMsgState === 'NOTIFICATION_BOX') {
+                                userHasBeenPresentWithBoxMsg = true;
+                            }
+
                             updateBlackoutState();
-                        }, 10000);
-                    } else if (activeMessage && activeMsgState === 'NOTIFICATION_BOX') {
-                        userHasBeenPresentWithBoxMsg = true;
+                        }, 5000); // 5 seconds continuous presence requirement
                     }
                 } else {
-                    if (activeMessage && activeMsgState === 'NOTIFICATION_BOX' && userHasBeenPresentWithBoxMsg) {
-                        clearNotificationBox();
-                        activeMessage = null;
-                        activeMsgState = null;
-                        userHasBeenPresentWithBoxMsg = false;
+                    // Cancel presence timer if user went absent before 5s was up
+                    if (presenceTimer) {
+                        clearTimeout(presenceTimer);
+                        presenceTimer = null;
+                    }
+
+                    // If user is currently present, start 15s absence grace timer
+                    if (userIsPresent && !absenceTimer) {
+                        absenceTimer = setTimeout(() => {
+                            userIsPresent = false;
+                            absenceTimer = null;
+
+                            if (activeMessage && activeMsgState === 'NOTIFICATION_BOX' && userHasBeenPresentWithBoxMsg) {
+                                clearNotificationBox();
+                                activeMessage = null;
+                                activeMsgState = null;
+                                userHasBeenPresentWithBoxMsg = false;
+                            }
+
+                            updateBlackoutState();
+                        }, 15000); // 15 seconds continuous absence requirement
                     }
                 }
 
-                updateBlackoutState();
                 return;
             }
 
