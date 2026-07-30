@@ -329,6 +329,19 @@
             notifyBox.innerHTML = '<p class="status-text">No new messages</p>';
         }
 
+        function deactivateMirrorMan() {
+            const videoLayer = document.getElementById('video-layer');
+            const uiLayer = document.getElementById('ui-layer');
+            const v = document.getElementById('mirror-video');
+
+            if (mirrorActive) {
+                mirrorActive = false;
+                if (videoLayer) videoLayer.classList.remove('visible');
+                if (uiLayer) uiLayer.classList.remove('hidden');
+                if (v) v.pause();
+            }
+        }
+
         function updateBlackoutState() {
             const wrapper = document.getElementById('mirror-wrapper');
             const v = document.getElementById('mirror-video');
@@ -338,8 +351,9 @@
                 if (activeMsgState === 'FULLSCREEN') {
                     wrapper.classList.remove('black-out');
                 } else {
+                    deactivateMirrorMan();
                     wrapper.classList.add('black-out');
-                    v.pause();
+                    if (v) v.pause();
                 }
             }
         }

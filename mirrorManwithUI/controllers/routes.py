@@ -15,6 +15,23 @@ def register_routes(app, bot, manager):
     async def presence_trigger(status: str):
         # Receives 'present' or 'absent' from the Serial Python script
         # and broadcasts it to the Web UI via WebSockets.
+        if status.lower() == "absent":
+            # 1. Stop bot / deactivate Mirror Man if active
+            if bot.is_active:
+                print("[PRESENCE] User absent — deactivating Mirror Man bot.", flush=True)
+                bot.is_active = False
+                bot.is_speaking = False
+                await manager.broadcast("hide_mirror")
+
+            # 2. Stop music if playing or paused
+            try:
+                from services.music_assistant import stop_music, is_music_playing, paused
+                if is_music_playing() or paused:
+                    print("[PRESENCE] User absent — stopping music playback.", flush=True)
+                    await stop_music(announce=False)
+            except Exception as e:
+                print(f"[PRESENCE] Error stopping music on absence: {e}", flush=True)
+
         await manager.broadcast(json.dumps({"type": "presence", "value": status}))
         return {"status": "success", "received": status}
 
