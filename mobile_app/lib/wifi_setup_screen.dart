@@ -39,7 +39,7 @@ class _WifiSetupScreenState extends State<WifiSetupScreen> {
 
     final ssid = _ssidController.text.trim();
     final password = _passwordController.text.trim();
-    final ipAddress = _ipController.text.trim();
+    final ipAddress = _ipController.text.replaceAll(' ', '');
 
     final client = HttpClient();
     client.connectionTimeout = const Duration(seconds: 10);
