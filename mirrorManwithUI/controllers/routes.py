@@ -24,8 +24,22 @@ def register_routes(app, bot, manager):
                     content={"status": "error", "message": "SSID and Password are required"}
                 )
             
-            print(f"📡 [WiFi Provisioner] [MOCK MODE] Received credentials: SSID='{ssid}', Password='{password}'", flush=True)
-            return {"status": "success", "message": "[MOCK] Credentials received successfully. Mirror network switch disabled."}
+            print(f"📡 [WiFi Provisioner] Received Wi-Fi credentials for: SSID='{ssid}'", flush=True)
+            
+            def attempt_connection():
+                # Import here to avoid circular dependencies
+                from services.wifi_provisioner import connect_to_wifi
+                # Introduce a tiny delay so the HTTP response goes through before network settings change
+                import time
+                time.sleep(2)
+                success, msg = connect_to_wifi(ssid, password)
+                if success:
+                    print(f"✅ [WiFi Provisioner] Connection to '{ssid}' succeeded!", flush=True)
+                else:
+                    print(f"❌ [WiFi Provisioner] Connection to '{ssid}' failed: {msg}", flush=True)
+            
+            threading.Thread(target=attempt_connection, daemon=True).start()
+            return {"status": "success", "message": "Connection attempt started. The mirror will switch networks shortly."}
         except Exception as e:
             return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
 
