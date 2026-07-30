@@ -4,7 +4,7 @@ import sys
 import os
 
 def start_mirror_system():
-    print("?? ReflectStudio ??????? ??????????...")
+    print("🚀 ReflectStudio System Launcher starting...", flush=True)
 
     # Get the absolute path to the directory containing this script (mirrorManwithUI)
     base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -18,25 +18,30 @@ def start_mirror_system():
     # Use venv_python if it exists, otherwise fallback to sys.executable
     python_exe = venv_python if os.path.exists(venv_python) else sys.executable
 
-    # 1. UI ?? WebSocket ????????? (app.py) ????? ?????
+    # 1. UI & WebSocket server (app.py)
     ui_proc = subprocess.Popen([python_exe, "app.py"], cwd=base_dir)
-    print("? Mirror UI ?? ??????? ????.")
+    print("✅ Mirror UI & Backend server started.", flush=True)
 
-    # UI ?? ??????? ???? ????? 5?? ??????
+    # Wait 5 seconds for FastAPI server to be up
     time.sleep(5)
 
-    # 2. Vision Engine ?? ????? ?????
+    # 2. Vision Engine
     vision_proc = subprocess.Popen([python_exe, "-m", "services.vision_engine"], cwd=base_dir)
-    print("? Vision Engine ?? ??????? ????.")
+    print("✅ Vision Engine started.", flush=True)
+
+    # 3. Serial Bridge (Presence Sensor)
+    serial_proc = subprocess.Popen([python_exe, "-m", "services.serial_bridge"], cwd=base_dir)
+    print("✅ Serial Bridge (Presence Sensor) started.", flush=True)
 
     try:
-        # ??????? ????? ??????????? ???? ?? ??????
         ui_proc.wait()
         vision_proc.wait()
+        serial_proc.wait()
     except KeyboardInterrupt:
-        print("\n?? ??????? ?????????...")
+        print("\n🛑 Shutting down all processes...", flush=True)
         ui_proc.terminate()
         vision_proc.terminate()
+        serial_proc.terminate()
 
 if __name__ == "__main__":
     start_mirror_system()
