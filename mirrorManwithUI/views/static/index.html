@@ -24,7 +24,7 @@
         </div>
     </div>
 
-    <div id="mirror-wrapper">
+    <div id="mirror-wrapper" class="black-out">
         <div id="ui-layer">
 
             <div class="widget top-left combined-left-container">
@@ -220,22 +220,59 @@
         let lastPresentTimestamp = 0;
         let continuousPresentStartTime = 0;
 
-        function evaluatePresenceTimeout() {
-            if (userIsPresent && lastPresentTimestamp > 0 && (Date.now() - lastPresentTimestamp >= 15000)) {
-                console.log("🌙 [Presence System] 15s absence threshold reached! Blacking out UI.");
-                userIsPresent = false;
+        function checkPresenceTimers() {
+            const now = Date.now();
 
-                if (activeMessage && activeMsgState === 'NOTIFICATION_BOX' && userHasBeenPresentWithBoxMsg) {
-                    clearNotificationBox();
-                    activeMessage = null;
-                    activeMsgState = null;
-                    userHasBeenPresentWithBoxMsg = false;
+            if (!userIsPresent) {
+                // WAKING UP: Check if present for 5 continuous seconds
+                if (lastPresentTimestamp > 0 && (now - lastPresentTimestamp < 2500)) {
+                    if (continuousPresentStartTime === 0) {
+                        continuousPresentStartTime = now;
+                    } else if (now - continuousPresentStartTime >= 5000) { // 5s continuous presence
+                        console.log("✅ [Presence System] 5s continuous presence confirmed! Waking up UI.");
+                        userIsPresent = true;
+                        continuousPresentStartTime = 0;
+
+                        if (activeMessage && activeMsgState === 'FULLSCREEN') {
+                            clearActiveMsgTimer();
+                            displayFullscreen(activeMessage, 10);
+                            activeMsgTimer = setTimeout(() => {
+                                hideFullscreen();
+                                activeMessage = null;
+                                activeMsgState = null;
+                                updateBlackoutState();
+                            }, 10000);
+                        } else if (activeMessage && activeMsgState === 'NOTIFICATION_BOX') {
+                            userHasBeenPresentWithBoxMsg = true;
+                        }
+
+                        updateBlackoutState();
+                    }
+                } else {
+                    // Reset presence start time if presence signal dropped
+                    continuousPresentStartTime = 0;
                 }
+            } else {
+                // SLEEPING: Check if no presence signal received for 15 seconds
+                if (lastPresentTimestamp > 0 && (now - lastPresentTimestamp >= 15000)) {
+                    console.log("🌙 [Presence System] 15s absence threshold reached! Blacking out UI.");
+                    userIsPresent = false;
+                    continuousPresentStartTime = 0;
 
-                updateBlackoutState();
+                    if (activeMessage && activeMsgState === 'NOTIFICATION_BOX' && userHasBeenPresentWithBoxMsg) {
+                        clearNotificationBox();
+                        activeMessage = null;
+                        activeMsgState = null;
+                        userHasBeenPresentWithBoxMsg = false;
+                    }
+
+                    updateBlackoutState();
+                }
             }
         }
-        setInterval(evaluatePresenceTimeout, 1000);
+
+        // Run presence timer checker twice per second (500ms)
+        setInterval(checkPresenceTimers, 500);
 
         function clearActiveMsgTimer() {
             if (activeMsgTimer) {
@@ -415,50 +452,11 @@
 
                 if (isPresent) {
                     lastPresentTimestamp = now;
-
-                    if (!userIsPresent) {
-                        if (continuousPresentStartTime === 0) {
-                            continuousPresentStartTime = now;
-                        } else if (now - continuousPresentStartTime >= 5000) { // 5s continuous presence
-                            console.log("✅ [Presence System] 5s continuous presence confirmed! Waking up UI.");
-                            userIsPresent = true;
-                            continuousPresentStartTime = 0;
-
-                            if (activeMessage && activeMsgState === 'FULLSCREEN') {
-                                clearActiveMsgTimer();
-                                displayFullscreen(activeMessage, 10);
-                                activeMsgTimer = setTimeout(() => {
-                                    hideFullscreen();
-                                    activeMessage = null;
-                                    activeMsgState = null;
-                                    updateBlackoutState();
-                                }, 10000);
-                            } else if (activeMessage && activeMsgState === 'NOTIFICATION_BOX') {
-                                userHasBeenPresentWithBoxMsg = true;
-                            }
-
-                            updateBlackoutState();
-                        }
-                    }
                 } else {
-                    // Reset continuous present timer on explicit absent
                     continuousPresentStartTime = 0;
-
-                    if (userIsPresent && lastPresentTimestamp > 0 && (now - lastPresentTimestamp >= 15000)) {
-                        console.log("🌙 [Presence System] 15s absence threshold reached! Blacking out UI.");
-                        userIsPresent = false;
-
-                        if (activeMessage && activeMsgState === 'NOTIFICATION_BOX' && userHasBeenPresentWithBoxMsg) {
-                            clearNotificationBox();
-                            activeMessage = null;
-                            activeMsgState = null;
-                            userHasBeenPresentWithBoxMsg = false;
-                        }
-
-                        updateBlackoutState();
-                    }
                 }
 
+                checkPresenceTimers();
                 return;
             }
 

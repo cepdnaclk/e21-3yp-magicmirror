@@ -9,6 +9,7 @@ def run_serial_bridge():
     print(f"📡 [Serial Bridge] Connecting to ESP32 via Serial ({SERIAL_PORT} @ {SERIAL_BAUD})...", flush=True)
     ser = None
     last_sent_state = None
+    last_sent_time = 0
 
     while True:
         if ser is None:
@@ -44,15 +45,18 @@ def run_serial_bridge():
                     detected_state = "present" if is_present else "absent"
 
             if detected_state:
-                # Print and transmit immediately
-                if detected_state != last_sent_state:
-                    print(f"📡 [Serial Bridge] State Changed -> {detected_state.upper()}", flush=True)
-                    last_sent_state = detected_state
-                
-                try:
-                    requests.get(API_URL + detected_state, timeout=1.0)
-                except Exception:
-                    pass
+                now = time.time()
+                # Transmit if state changed OR every 1.0 second heartbeat
+                if detected_state != last_sent_state or (now - last_sent_time) >= 1.0:
+                    if detected_state != last_sent_state:
+                        print(f"📡 [Serial Bridge] State Changed -> {detected_state.upper()}", flush=True)
+                        last_sent_state = detected_state
+                    last_sent_time = now
+
+                    try:
+                        requests.get(API_URL + detected_state, timeout=1.0)
+                    except Exception:
+                        pass
 
         except Exception as e:
             print(f"⚠️ [Serial Bridge] Read error: {e}", flush=True)
