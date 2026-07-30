@@ -24,9 +24,9 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isSendingMessage = false; 
   String _userEmail = '';
 
-  final Color _accentCyan = const Color(0xFF00F0FF);
-  final Color _accentPurple = const Color(0xFF9E00FF);
-  final Color _accentPink = const Color(0xFFFF007A); 
+  final Color _accentCyan = const Color(0xFFFFD86B);
+  final Color _accentPurple = const Color(0xFFF6C85F);
+  final Color _accentPink = const Color(0xFFD9A441); 
 
   final List<Map<String, String>> _alertTemplates = [
     {"icon": "🍽️", "label": "Lunch is ready!"},
@@ -171,7 +171,7 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Text(
               title.toUpperCase(),
               style: GoogleFonts.outfit(
-                color: command == 'shutdown' ? Colors.redAccent : Colors.cyan,
+                color: command == 'shutdown' ? Colors.redAccent : const Color(0xFFFFD86B),
                 fontWeight: FontWeight.bold,
               ),
             ),

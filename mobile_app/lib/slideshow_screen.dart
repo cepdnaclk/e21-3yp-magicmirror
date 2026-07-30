@@ -13,8 +13,11 @@ class SlideshowScreen extends StatefulWidget {
 }
 
 class _SlideshowScreenState extends State<SlideshowScreen> {
-  final Color _accentColor = const Color(0xFFC4D300);
-  final Color _bgDark = const Color(0xFF0A0B10);
+  final Color _accentCyan = const Color(0xFFFFD86B);
+  final Color _accentPurple = const Color(0xFFF6C85F);
+  final Color _bgDark = const Color(0xFF07080E);
+  final Color _glassWhite = Colors.white.withOpacity(0.03);
+  final Color _glassBorder = Colors.white.withOpacity(0.06);
   
   List<Map<String, String>> _images = [];
   bool _isLoading = true;
@@ -140,15 +143,15 @@ class _SlideshowScreenState extends State<SlideshowScreen> {
           "MANAGE SLIDESHOW", 
           style: GoogleFonts.orbitron(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 2)
         ).animate(onPlay: (controller) => controller.repeat(reverse: true))
-         .shimmer(duration: 2.seconds, color: _accentColor.withOpacity(0.5)),
+         .shimmer(duration: 3.seconds, color: _accentCyan.withOpacity(0.5)),
       ),
       body: Stack(
         children: [
           Positioned(
             bottom: -50, left: -100,
             child: Container(
-              width: 300, height: 300,
-              decoration: BoxDecoration(shape: BoxShape.circle, gradient: RadialGradient(colors: [Colors.cyan.withOpacity(0.1), Colors.transparent])),
+              width: 320, height: 320,
+              decoration: BoxDecoration(shape: BoxShape.circle, gradient: RadialGradient(colors: [_accentPurple.withOpacity(0.12), Colors.transparent])),
             ).animate(onPlay: (controller) => controller.repeat(reverse: true))
              .scaleXY(end: 1.3, duration: 5.seconds, curve: Curves.easeInOut)
              .fadeIn(duration: 2.seconds),
@@ -156,13 +159,13 @@ class _SlideshowScreenState extends State<SlideshowScreen> {
           
           SafeArea(
             child: _isLoading 
-              ? Center(child: CircularProgressIndicator(color: _accentColor))
+              ? Center(child: CircularProgressIndicator(color: _accentCyan))
               : _images.isEmpty
                   ? Center(
                       child: Text(
                         "No images found.\nUpload a photo to display on the mirror!", 
                         textAlign: TextAlign.center,
-                        style: GoogleFonts.outfit(color: Colors.white54, fontSize: 16)
+                        style: GoogleFonts.outfit(color: Colors.white38, fontSize: 15)
                       ).animate().fade().slideY(),
                     )
                   : GridView.builder(
@@ -184,17 +187,33 @@ class _SlideshowScreenState extends State<SlideshowScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _uploadImage,
-        backgroundColor: _accentColor,
-        icon: const Icon(Icons.add_photo_alternate, color: Colors.black),
-        label: Text("ADD PHOTO", style: GoogleFonts.orbitron(color: Colors.black, fontWeight: FontWeight.bold)),
+      floatingActionButton: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(30),
+          gradient: LinearGradient(
+            colors: [_accentPurple, _accentCyan],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: _accentCyan.withOpacity(0.3),
+              blurRadius: 15,
+              spreadRadius: 1,
+              offset: const Offset(0, 4),
+            )
+          ],
+        ),
+        child: FloatingActionButton.extended(
+          onPressed: _uploadImage,
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          highlightElevation: 0,
+          icon: const Icon(Icons.add_photo_alternate_rounded, color: Colors.white),
+          label: Text("ADD PHOTO", style: GoogleFonts.orbitron(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 1)),
+        ),
       ).animate(onPlay: (controller) => controller.repeat(reverse: true))
-       .boxShadow(
-         begin: BoxShadow(color: _accentColor.withOpacity(0.2), blurRadius: 5, spreadRadius: 0),
-         end: BoxShadow(color: _accentColor.withOpacity(0.6), blurRadius: 15, spreadRadius: 2),
-         duration: 2.seconds,
-       ),
+       .shimmer(duration: 3.seconds, color: Colors.white.withOpacity(0.2)),
     );
   }
 
@@ -204,12 +223,12 @@ class _SlideshowScreenState extends State<SlideshowScreen> {
       children: [
         Container(
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.05),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.white.withOpacity(0.1)),
+            color: _glassWhite,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: _glassBorder),
           ),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(15),
+            borderRadius: BorderRadius.circular(19),
             child: Image.network(
               imageData['url']!,
               fit: BoxFit.cover,
@@ -217,7 +236,7 @@ class _SlideshowScreenState extends State<SlideshowScreen> {
                 if (loadingProgress == null) return child;
                 return Center(
                   child: CircularProgressIndicator(
-                    color: _accentColor,
+                    color: _accentCyan,
                     value: loadingProgress.expectedTotalBytes != null
                         ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
                         : null,
@@ -225,7 +244,7 @@ class _SlideshowScreenState extends State<SlideshowScreen> {
                 );
               },
               errorBuilder: (context, error, stackTrace) {
-                return const Center(child: Icon(Icons.broken_image, color: Colors.white24, size: 40));
+                return const Center(child: Icon(Icons.broken_image_rounded, color: Colors.white24, size: 36));
               },
             ),
           ),
@@ -240,9 +259,9 @@ class _SlideshowScreenState extends State<SlideshowScreen> {
               decoration: BoxDecoration(
                 color: Colors.black.withOpacity(0.6),
                 shape: BoxShape.circle,
-                border: Border.all(color: Colors.redAccent.withOpacity(0.5)),
+                border: Border.all(color: Colors.redAccent.withOpacity(0.3)),
               ),
-              child: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
+              child: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 18),
             ),
           ),
         ),

@@ -81,14 +81,14 @@ class _MyAppState extends State<MyApp> {
       debugShowCheckedModeBanner: false,
       title: 'ReflectOS',
       theme: ThemeData.dark().copyWith(
-        scaffoldBackgroundColor: const Color(0xFF0A0B10),
-        primaryColor: const Color(0xFFC4D300),
+        scaffoldBackgroundColor: const Color(0xFF07080E),
+        primaryColor: const Color(0xFFFFD86B),
       ),
       // Shows a SplashScreen or Indicator until loading is finished
       home: _isLoading 
         ? const Scaffold(
             body: Center(
-              child: CircularProgressIndicator(color: Color(0xFFC4D300)),
+              child: CircularProgressIndicator(color: Color(0xFFFFD86B)),
             ),
           )
         // Redirects to HomeScreen if already logged in, otherwise LoginScreen

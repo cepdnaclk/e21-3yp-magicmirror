@@ -29,10 +29,11 @@ class _AddFamilyMemberScreenState extends State<AddFamilyMemberScreen> {
   final ImagePicker _picker = ImagePicker();
   bool _isLoading = false;
 
-  final Color _accentColor = const Color(0xFFC4D300);
-  final Color _bgDark = const Color(0xFF0A0B10);
-  final Color _glassWhite = Colors.white.withOpacity(0.05);
-  final Color _glassBorder = Colors.white.withOpacity(0.1);
+  final Color _accentCyan = const Color(0xFFFFD86B);
+  final Color _accentPurple = const Color(0xFFF6C85F);
+  final Color _bgDark = const Color(0xFF07080E);
+  final Color _glassWhite = Colors.white.withOpacity(0.03);
+  final Color _glassBorder = Colors.white.withOpacity(0.06);
 
   Future<void> _pickImage() async {
     if (_currentStepIndex >= _steps.length) return;
@@ -62,7 +63,7 @@ class _AddFamilyMemberScreenState extends State<AddFamilyMemberScreen> {
       return;
     }
     if (_nameController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("⚠️ Please enter their email!")));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("⚠️ Please enter their name!")));
       return;
     }
 
@@ -72,11 +73,12 @@ class _AddFamilyMemberScreenState extends State<AddFamilyMemberScreen> {
       final attributes = await Amplify.Auth.fetchUserAttributes();
       final emailAttr = attributes.firstWhere((attr) => attr.userAttributeKey == AuthUserAttributeKey.email);
       final mainUserEmail = emailAttr.value.split('@')[0].trim().toLowerCase();
-      final cleanName = _nameController.text.trim().split('@')[0].trim().replaceAll(' ', '_').toLowerCase();
+      final cleanName = _nameController.text.trim().replaceAll(' ', '_').toLowerCase();
+      final cleanRelation = _selectedRelation.toLowerCase();
 
       // Loop through and upload each angle
       for (String angle in _faceAngles.keys) {
-        final String pathName = 'public/face_entries/${mainUserEmail}_${cleanName}_$angle.jpg';
+        final String pathName = 'public/face_entries/${mainUserEmail}_${cleanRelation}_${cleanName}_$angle.jpg';
 
         await Amplify.Storage.uploadData(
           data: StorageDataPayload.bytes(_faceAngles[angle]!),
@@ -89,9 +91,9 @@ class _AddFamilyMemberScreenState extends State<AddFamilyMemberScreen> {
           name: _nameController.text.trim(),
           relationship: _selectedRelation,
           imagePaths: [
-            'public/face_entries/${mainUserEmail}_${cleanName}_front.jpg',
-            'public/face_entries/${mainUserEmail}_${cleanName}_left.jpg',
-            'public/face_entries/${mainUserEmail}_${cleanName}_right.jpg'
+            'public/face_entries/${mainUserEmail}_${cleanRelation}_${cleanName}_front.jpg',
+            'public/face_entries/${mainUserEmail}_${cleanRelation}_${cleanName}_left.jpg',
+            'public/face_entries/${mainUserEmail}_${cleanRelation}_${cleanName}_right.jpg'
           ],
         );
 
@@ -139,7 +141,7 @@ class _AddFamilyMemberScreenState extends State<AddFamilyMemberScreen> {
         iconTheme: const IconThemeData(color: Colors.white),
         title: Text("ADD FAMILY", style: GoogleFonts.orbitron(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 2))
           .animate(onPlay: (controller) => controller.repeat(reverse: true))
-          .shimmer(duration: 2.seconds, color: _accentColor.withOpacity(0.5)),
+          .shimmer(duration: 3.seconds, color: _accentCyan.withOpacity(0.5)),
       ),
       body: Stack(
         children: [
@@ -148,9 +150,9 @@ class _AddFamilyMemberScreenState extends State<AddFamilyMemberScreen> {
             top: -50, right: -100,
             child: Container(
               width: 350, height: 350,
-              decoration: BoxDecoration(shape: BoxShape.circle, gradient: RadialGradient(colors: [_accentColor.withOpacity(0.15), Colors.transparent])),
+              decoration: BoxDecoration(shape: BoxShape.circle, gradient: RadialGradient(colors: [_accentPurple.withOpacity(0.12), Colors.transparent])),
             ).animate(onPlay: (controller) => controller.repeat(reverse: true))
-             .scaleXY(end: 1.2, duration: 4.seconds, curve: Curves.easeInOut)
+             .scaleXY(end: 1.25, duration: 4.seconds, curve: Curves.easeInOut)
              .fadeIn(duration: 2.seconds),
           ),
           
@@ -160,8 +162,8 @@ class _AddFamilyMemberScreenState extends State<AddFamilyMemberScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text("Register Face", style: GoogleFonts.orbitron(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
-                  Text("Capture 3 angles for better recognition", style: GoogleFonts.outfit(color: Colors.white54, fontSize: 14)),
+                  Text("Register Face", style: GoogleFonts.orbitron(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
+                  Text("Capture 3 angles for better recognition", style: GoogleFonts.outfit(color: Colors.white38, fontSize: 13)),
 
                   const SizedBox(height: 30),
 
@@ -172,28 +174,28 @@ class _AddFamilyMemberScreenState extends State<AddFamilyMemberScreen> {
                         GestureDetector(
                           onTap: _pickImage,
                           child: Container(
-                            height: 160, width: 160,
+                            height: 150, width: 150,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               color: _glassWhite,
-                              border: Border.all(color: _accentColor.withOpacity(0.5), width: 2),
-                              boxShadow: [BoxShadow(color: _accentColor.withOpacity(0.2), blurRadius: 20)],
+                              border: Border.all(color: _accentCyan.withOpacity(0.3), width: 2),
+                              boxShadow: [BoxShadow(color: _accentCyan.withOpacity(0.15), blurRadius: 15)],
                             ),
                             child: _faceAngles[_steps[_currentStepIndex]] != null || (_currentStepIndex == 2 && _faceAngles.containsKey('right'))
                                 ? ClipOval(child: Image.memory(_faceAngles[_steps[_currentStepIndex]] ?? _faceAngles['right']!, fit: BoxFit.cover))
-                                : Icon(Icons.face_retouching_natural, color: _accentColor, size: 50),
+                                : Icon(Icons.face_retouching_natural_rounded, color: _accentCyan, size: 45),
                           ).animate(target: _faceAngles.length == 3 ? 1 : 0).shimmer(duration: 1.seconds, color: Colors.white),
                         ),
                         const SizedBox(height: 15),
                         Text(
                           _faceAngles.length == 3 ? "ALL ANGLES CAPTURED" : "STEP: $currentInstruction",
-                          style: GoogleFonts.orbitron(color: _accentColor, fontSize: 14, fontWeight: FontWeight.bold),
+                          style: GoogleFonts.orbitron(color: _accentCyan, fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 1),
                         ).animate(onPlay: (controller) => controller.repeat(reverse: true)).fadeIn().fadeOut(duration: 1.seconds),
                       ],
                     ),
                   ),
                   
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 24),
 
                   // Thumbnail Preview Row
                   Row(
@@ -202,13 +204,13 @@ class _AddFamilyMemberScreenState extends State<AddFamilyMemberScreen> {
                       bool isCaptured = _faceAngles.containsKey(angle);
                       return Container(
                         margin: const EdgeInsets.symmetric(horizontal: 8),
-                        width: 50, height: 50,
+                        width: 48, height: 48,
                         decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: isCaptured ? _accentColor : Colors.white10),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: isCaptured ? _accentCyan : Colors.white10),
                           image: isCaptured ? DecorationImage(image: MemoryImage(_faceAngles[angle]!), fit: BoxFit.cover) : null,
                         ),
-                        child: !isCaptured ? const Icon(Icons.lock_outline, color: Colors.white10, size: 20) : null,
+                        child: !isCaptured ? const Icon(Icons.lock_outline_rounded, color: Colors.white10, size: 18) : null,
                       );
                     }).toList(),
                   ),
@@ -220,13 +222,13 @@ class _AddFamilyMemberScreenState extends State<AddFamilyMemberScreen> {
 
                   const SizedBox(height: 20),
 
-                  _buildLabel("Email Address (for login)"),
+                  _buildLabel("Full Name"),
                   _buildTextField(),
 
                   const SizedBox(height: 40),
 
                   _buildSaveButton(),
-                ].animate(interval: 100.ms).fade(duration: 500.ms).slideY(begin: 0.1, end: 0, curve: Curves.easeOutQuad),
+                ].animate(interval: 80.ms).fade(duration: 450.ms).slideY(begin: 0.08, end: 0, curve: Curves.easeOutQuad),
               ),
             ),
           ),
@@ -238,9 +240,9 @@ class _AddFamilyMemberScreenState extends State<AddFamilyMemberScreen> {
   Widget _buildDropdown() {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.08), 
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
+        color: Colors.white.withOpacity(0.03), 
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _glassBorder),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: DropdownButtonHideUnderline(
@@ -248,7 +250,7 @@ class _AddFamilyMemberScreenState extends State<AddFamilyMemberScreen> {
           value: _selectedRelation,
           dropdownColor: _bgDark,
           isExpanded: true,
-          style: GoogleFonts.outfit(color: Colors.white, fontSize: 16),
+          style: GoogleFonts.outfit(color: Colors.white, fontSize: 15),
           items: _relations.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
           onChanged: (val) => setState(() => _selectedRelation = val!),
         ),
@@ -259,17 +261,17 @@ class _AddFamilyMemberScreenState extends State<AddFamilyMemberScreen> {
   Widget _buildTextField() {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.08), 
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
+        color: Colors.white.withOpacity(0.03), 
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _glassBorder),
       ),
       child: TextField(
         controller: _nameController,
-        style: GoogleFonts.outfit(color: Colors.white),
+        style: GoogleFonts.outfit(color: Colors.white, fontSize: 15),
         decoration: InputDecoration(
-          hintText: "Enter their app email",
-          hintStyle: GoogleFonts.outfit(color: Colors.white24),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+          hintText: "Enter their name",
+          hintStyle: GoogleFonts.outfit(color: Colors.white24, fontSize: 14),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           border: InputBorder.none,
         ),
       ),
@@ -277,31 +279,44 @@ class _AddFamilyMemberScreenState extends State<AddFamilyMemberScreen> {
   }
 
   Widget _buildSaveButton() {
-    return SizedBox(
+    return Container(
       width: double.infinity, height: 55,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        gradient: LinearGradient(
+          colors: [_accentPurple, _accentCyan],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: _accentCyan.withOpacity(0.2),
+            blurRadius: 12,
+            spreadRadius: 0,
+            offset: const Offset(0, 4),
+          )
+        ],
+      ),
       child: ElevatedButton(
         onPressed: _isLoading ? null : _saveFamilyMember,
         style: ElevatedButton.styleFrom(
-          backgroundColor: _accentColor,
-          foregroundColor: Colors.black,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          backgroundColor: Colors.transparent,
+          shadowColor: Colors.transparent,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         ),
         child: _isLoading 
-          ? const CircularProgressIndicator(color: Colors.black)
-          : Text("AUTHORIZE ACCESS", style: GoogleFonts.orbitron(fontSize: 16, fontWeight: FontWeight.bold)),
+          ? const CircularProgressIndicator(color: Colors.white)
+          : Text("AUTHORIZE ACCESS", style: GoogleFonts.orbitron(fontSize: 15, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
       ),
     ).animate(onPlay: (controller) => controller.repeat(reverse: true))
-     .boxShadow(
-       begin: BoxShadow(color: _accentColor.withOpacity(0.2), blurRadius: 5, spreadRadius: 0),
-       end: BoxShadow(color: _accentColor.withOpacity(0.6), blurRadius: 15, spreadRadius: 2),
-       duration: 2.seconds,
-     );
+     .shimmer(duration: 3.seconds, color: Colors.white.withOpacity(0.2));
   }
 
   Widget _buildLabel(String text) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0, left: 5),
-      child: Text(text, style: GoogleFonts.orbitron(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+      child: Text(text, style: GoogleFonts.orbitron(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1)),
     );
   }
 }

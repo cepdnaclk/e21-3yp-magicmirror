@@ -32,10 +32,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
   bool _isPasswordVisible = false;
 
   // UI Colors
-  final Color _accentColor = const Color(0xFFC4D300);
-  final Color _bgDark = const Color(0xFF0A0B10);
-  final Color _glassWhite = Colors.white.withOpacity(0.05);
-  final Color _glassBorder = Colors.white.withOpacity(0.1);
+  final Color _accentCyan = const Color(0xFFFFD86B);
+  final Color _accentPurple = const Color(0xFFF6C85F);
+  final Color _bgDark = const Color(0xFF07080E);
+  final Color _glassWhite = Colors.white.withOpacity(0.03);
+  final Color _glassBorder = Colors.white.withOpacity(0.06);
 
   Future<void> _pickImage() async {
     if (_currentStepIndex >= _steps.length && _faceAngles.length == 3) {
@@ -136,32 +137,33 @@ class _SignUpScreenState extends State<SignUpScreen> {
           Positioned(
             top: -100, right: -100,
             child: Container(
-              width: 300, height: 300,
+              width: 320, height: 320,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                gradient: RadialGradient(colors: [_accentColor.withOpacity(0.15), Colors.transparent]),
+                gradient: RadialGradient(colors: [_accentPurple.withOpacity(0.12), Colors.transparent]),
               ),
             ).animate(onPlay: (controller) => controller.repeat(reverse: true))
-             .scaleXY(end: 1.2, duration: 4.seconds, curve: Curves.easeInOut)
+             .scaleXY(end: 1.25, duration: 4.seconds, curve: Curves.easeInOut)
              .fadeIn(duration: 2.seconds),
           ),
 
           SafeArea(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 15),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.arrow_back, color: Colors.white),
+                    icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
                     onPressed: () => Navigator.pop(context),
                   ),
-                  Text("Biometric Profile", style: GoogleFonts.orbitron(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold))
+                  const SizedBox(height: 10),
+                  Text("BIOMETRIC PROFILE", style: GoogleFonts.orbitron(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: 2))
                     .animate(onPlay: (controller) => controller.repeat(reverse: true))
-                    .shimmer(duration: 2.seconds, color: _accentColor.withOpacity(0.5)),
-                  Text("Register your face for ReflectStudio", style: GoogleFonts.outfit(color: Colors.white54, fontSize: 14)),
+                    .shimmer(duration: 3.seconds, color: _accentCyan.withOpacity(0.4)),
+                  Text("Register your face for ReflectStudio", style: GoogleFonts.outfit(color: Colors.white38, fontSize: 13)),
 
-                  const SizedBox(height: 30),
+                  const SizedBox(height: 28),
 
                   // Guided Camera UI
                   Center(
@@ -170,34 +172,34 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         GestureDetector(
                           onTap: _pickImage,
                           child: Container(
-                            height: 130, width: 130,
+                            height: 120, width: 120,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               color: _glassWhite,
                               border: Border.all(
-                                color: _faceAngles.length == 3 ? _accentColor : _glassBorder, 
+                                color: _faceAngles.length == 3 ? _accentCyan : _glassBorder, 
                                 width: 2
                               ),
-                              boxShadow: _faceAngles.length == 3 ? [BoxShadow(color: _accentColor.withOpacity(0.2), blurRadius: 20)] : [],
+                              boxShadow: _faceAngles.length == 3 ? [BoxShadow(color: _accentCyan.withOpacity(0.15), blurRadius: 15)] : [],
                             ),
                             child: _faceAngles[_steps[_currentStepIndex == 3 ? 0 : _currentStepIndex]] != null
                                 ? ClipOval(child: Image.memory(_faceAngles[_steps[_currentStepIndex == 3 ? 0 : _currentStepIndex]]!, fit: BoxFit.cover))
-                                : Icon(Icons.camera_front_rounded, color: _accentColor, size: 45),
+                                : Icon(Icons.face_retouching_natural_rounded, color: _accentCyan, size: 40),
                           ).animate(target: _faceAngles.length == 3 ? 1 : 0).shimmer(duration: 1.seconds, color: Colors.white),
                         ),
                         const SizedBox(height: 12),
-                        Text(instruction.toUpperCase(), style: GoogleFonts.orbitron(color: _accentColor, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1))
+                        Text(instruction.toUpperCase(), style: GoogleFonts.orbitron(color: _accentCyan, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.2))
                           .animate(onPlay: (controller) => controller.repeat(reverse: true)).fadeIn().fadeOut(duration: 1.seconds),
                         
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 8),
                         Row(
                           mainAxisSize: MainAxisSize.min,
                           children: List.generate(3, (index) => Container(
                             margin: const EdgeInsets.symmetric(horizontal: 4),
-                            width: 8, height: 8,
+                            width: 6, height: 6,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: _faceAngles.containsKey(_steps[index]) ? _accentColor : Colors.white10,
+                              color: _faceAngles.containsKey(_steps[index]) ? _accentCyan : Colors.white10,
                             ),
                           )),
                         )
@@ -205,14 +207,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     ),
                   ),
                   
-                  const SizedBox(height: 30),
+                  const SizedBox(height: 28),
 
                   _buildLabel("Full Name"),
                   _buildGlassTextField(controller: _nameController, hint: "Enter your full name"),
                   
                   const SizedBox(height: 15),
 
-                  _buildLabel("Email address"),
+                  _buildLabel("Email Address"),
                   _buildGlassTextField(controller: _emailController, hint: "Enter your email"),
 
                   const SizedBox(height: 15),
@@ -225,28 +227,41 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   _buildLabel("Confirm Password"),
                   _buildGlassTextField(controller: _confirmPassController, hint: "Confirm your password", isPassword: true),
 
-                  const SizedBox(height: 40),
+                  const SizedBox(height: 35),
 
-                  SizedBox(
+                  Container(
                     width: double.infinity, height: 55,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      gradient: LinearGradient(
+                        colors: [_accentPurple, _accentCyan],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: _accentCyan.withOpacity(0.2),
+                          blurRadius: 12,
+                          spreadRadius: 0,
+                          offset: const Offset(0, 4),
+                        )
+                      ],
+                    ),
                     child: ElevatedButton(
                       onPressed: _isLoading ? null : _registerUser,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: _accentColor,
-                        foregroundColor: Colors.black,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                        backgroundColor: Colors.transparent,
+                        shadowColor: Colors.transparent,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                       ),
                       child: _isLoading 
-                        ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
-                        : Text("CREATE PROFILE", style: GoogleFonts.orbitron(fontSize: 16, fontWeight: FontWeight.bold)),
+                        ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        : Text("CREATE PROFILE", style: GoogleFonts.orbitron(fontSize: 15, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
                     ),
                   ).animate(onPlay: (controller) => controller.repeat(reverse: true))
-                   .boxShadow(
-                     begin: BoxShadow(color: _accentColor.withOpacity(0.2), blurRadius: 5, spreadRadius: 0),
-                     end: BoxShadow(color: _accentColor.withOpacity(0.6), blurRadius: 15, spreadRadius: 2),
-                     duration: 2.seconds,
-                   ),
-                ].animate(interval: 100.ms).fade(duration: 500.ms).slideY(begin: 0.1, end: 0, curve: Curves.easeOutQuad),
+                   .shimmer(duration: 3.seconds, color: Colors.white.withOpacity(0.2)),
+                ].animate(interval: 80.ms).fade(duration: 450.ms).slideY(begin: 0.08, end: 0, curve: Curves.easeOutQuad),
               ),
             ),
           ),
@@ -258,29 +273,29 @@ class _SignUpScreenState extends State<SignUpScreen> {
   Widget _buildLabel(String text) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 6.0, left: 5),
-      child: Text(text, style: GoogleFonts.orbitron(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+      child: Text(text, style: GoogleFonts.orbitron(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1)),
     );
   }
 
   Widget _buildGlassTextField({required TextEditingController controller, required String hint, bool isPassword = false}) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.08), 
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
+        color: Colors.white.withOpacity(0.03), 
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _glassBorder),
       ),
       child: TextField(
         controller: controller,
         obscureText: isPassword && !_isPasswordVisible,
-        style: GoogleFonts.outfit(color: Colors.white),
+        style: GoogleFonts.outfit(color: Colors.white, fontSize: 15),
         decoration: InputDecoration(
           hintText: hint,
-          hintStyle: GoogleFonts.outfit(color: Colors.white24),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+          hintStyle: GoogleFonts.outfit(color: Colors.white24, fontSize: 14),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           border: InputBorder.none,
           suffixIcon: isPassword 
             ? IconButton(
-                icon: Icon(_isPasswordVisible ? Icons.visibility : Icons.visibility_off, color: Colors.white54),
+                icon: Icon(_isPasswordVisible ? Icons.visibility_rounded : Icons.visibility_off_rounded, color: Colors.white30, size: 20),
                 onPressed: () => setState(() => _isPasswordVisible = !_isPasswordVisible),
               )
             : null,

@@ -15,8 +15,11 @@ class ManageFamilyMembersScreen extends StatefulWidget {
 }
 
 class _ManageFamilyMembersScreenState extends State<ManageFamilyMembersScreen> {
-  final Color _accentColor = const Color(0xFFC4D300);
-  final Color _bgDark = const Color(0xFF0A0B10);
+  final Color _accentCyan = const Color(0xFFFFD86B);
+  final Color _accentPurple = const Color(0xFFF6C85F);
+  final Color _bgDark = const Color(0xFF07080E);
+  final Color _glassWhite = Colors.white.withOpacity(0.03);
+  final Color _glassBorder = Colors.white.withOpacity(0.06);
 
   List<FamilyMember> _members = [];
   bool _isLoading = true;
@@ -82,12 +85,16 @@ class _ManageFamilyMembersScreenState extends State<ManageFamilyMembersScreen> {
           final attributes = await Amplify.Auth.fetchUserAttributes();
           final emailAttr = attributes.firstWhere((attr) => attr.userAttributeKey == AuthUserAttributeKey.email);
           final mainUserEmail = emailAttr.value.split('@')[0].trim().toLowerCase();
-          final cleanMemberName = member.name.split('@')[0].trim().replaceAll(' ', '_').toLowerCase();
+          
+          final cleanMemberName = member.name.contains('@')
+              ? member.name.split('@')[0].trim().replaceAll(' ', '_').toLowerCase()
+              : member.name.trim().replaceAll(' ', '_').toLowerCase();
+          final cleanRelation = member.relationship.toLowerCase().trim();
           
           pathsToDelete = [
-            'public/face_entries/${mainUserEmail}_${cleanMemberName}_front.jpg',
-            'public/face_entries/${mainUserEmail}_${cleanMemberName}_left.jpg',
-            'public/face_entries/${mainUserEmail}_${cleanMemberName}_right.jpg',
+            'public/face_entries/${mainUserEmail}_${cleanRelation}_${cleanMemberName}_front.jpg',
+            'public/face_entries/${mainUserEmail}_${cleanRelation}_${cleanMemberName}_left.jpg',
+            'public/face_entries/${mainUserEmail}_${cleanRelation}_${cleanMemberName}_right.jpg',
           ];
         } catch (authErr) {
           safePrint('Failed to construct fallback S3 paths: $authErr');
@@ -145,27 +152,27 @@ class _ManageFamilyMembersScreenState extends State<ManageFamilyMembersScreen> {
           "FAMILY MEMBERS", 
           style: GoogleFonts.orbitron(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 2)
         ).animate(onPlay: (controller) => controller.repeat(reverse: true))
-         .shimmer(duration: 2.seconds, color: _accentColor.withOpacity(0.5)),
+         .shimmer(duration: 3.seconds, color: _accentCyan.withOpacity(0.5)),
       ),
       body: Stack(
         children: [
           Positioned(
             bottom: -50, right: -100,
             child: Container(
-              width: 300, height: 300,
-              decoration: BoxDecoration(shape: BoxShape.circle, gradient: RadialGradient(colors: [_accentColor.withOpacity(0.1), Colors.transparent])),
+              width: 320, height: 320,
+              decoration: BoxDecoration(shape: BoxShape.circle, gradient: RadialGradient(colors: [_accentPurple.withOpacity(0.12), Colors.transparent])),
             ).animate(onPlay: (controller) => controller.repeat(reverse: true))
              .scaleXY(end: 1.3, duration: 5.seconds, curve: Curves.easeInOut),
           ),
           SafeArea(
             child: _isLoading 
-              ? Center(child: CircularProgressIndicator(color: _accentColor))
+              ? Center(child: CircularProgressIndicator(color: _accentCyan))
               : _members.isEmpty
                   ? Center(
                       child: Text(
                         "No family members found.\nAdd a member to the system!", 
                         textAlign: TextAlign.center,
-                        style: GoogleFonts.outfit(color: Colors.white54, fontSize: 16)
+                        style: GoogleFonts.outfit(color: Colors.white38, fontSize: 15)
                       ).animate().fade().slideY(),
                     )
                   : ListView.builder(
@@ -176,26 +183,42 @@ class _ManageFamilyMembersScreenState extends State<ManageFamilyMembersScreen> {
                         return _buildMemberCard(member)
                           .animate()
                           .fade(delay: (index * 100).ms)
-                          .slideX(begin: 0.2);
+                          .slideX(begin: 0.15);
                       },
                     ),
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () async {
-          await Navigator.push(context, MaterialPageRoute(builder: (context) => const AddFamilyMemberScreen()));
-          _loadMembers(); // Reload after coming back
-        },
-        backgroundColor: _accentColor,
-        icon: const Icon(Icons.person_add, color: Colors.black),
-        label: Text("ADD MEMBER", style: GoogleFonts.orbitron(color: Colors.black, fontWeight: FontWeight.bold)),
+      floatingActionButton: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(30),
+          gradient: LinearGradient(
+            colors: [_accentPurple, _accentCyan],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: _accentCyan.withOpacity(0.3),
+              blurRadius: 15,
+              spreadRadius: 1,
+              offset: const Offset(0, 4),
+            )
+          ],
+        ),
+        child: FloatingActionButton.extended(
+          onPressed: () async {
+            await Navigator.push(context, MaterialPageRoute(builder: (context) => const AddFamilyMemberScreen()));
+            _loadMembers(); 
+          },
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          highlightElevation: 0,
+          icon: const Icon(Icons.person_add_rounded, color: Colors.white),
+          label: Text("ADD MEMBER", style: GoogleFonts.orbitron(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 1)),
+        ),
       ).animate(onPlay: (controller) => controller.repeat(reverse: true))
-       .boxShadow(
-         begin: BoxShadow(color: _accentColor.withOpacity(0.2), blurRadius: 5, spreadRadius: 0),
-         end: BoxShadow(color: _accentColor.withOpacity(0.6), blurRadius: 15, spreadRadius: 2),
-         duration: 2.seconds,
-       ),
+       .shimmer(duration: 3.seconds, color: Colors.white.withOpacity(0.2)),
     );
   }
 
@@ -203,23 +226,23 @@ class _ManageFamilyMembersScreenState extends State<ManageFamilyMembersScreen> {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
+        color: _glassWhite,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: _glassBorder),
       ),
       child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         leading: CircleAvatar(
-          backgroundColor: _accentColor.withOpacity(0.2),
-          child: Icon(Icons.person, color: _accentColor),
+          backgroundColor: _accentPurple.withOpacity(0.15),
+          child: Icon(Icons.person_rounded, color: _accentCyan),
         ),
-        title: Text(member.name, style: GoogleFonts.orbitron(color: Colors.white, fontWeight: FontWeight.bold)),
-        subtitle: Text(member.relationship, style: GoogleFonts.outfit(color: Colors.white54)),
+        title: Text(member.name, style: GoogleFonts.orbitron(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15, letterSpacing: 0.5)),
+        subtitle: Text(member.relationship.toUpperCase(), style: GoogleFonts.outfit(color: Colors.white38, fontSize: 12, letterSpacing: 1, fontWeight: FontWeight.w500)),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             IconButton(
-              icon: const Icon(Icons.edit_outlined, color: Colors.blueAccent),
+              icon: Icon(Icons.edit_outlined, color: _accentCyan.withOpacity(0.8)),
               onPressed: () async {
                 final result = await Navigator.push(
                   context,
@@ -231,7 +254,7 @@ class _ManageFamilyMembersScreenState extends State<ManageFamilyMembersScreen> {
               },
             ),
             IconButton(
-              icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+              icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent),
               onPressed: () => _deleteMember(member),
             ),
           ],

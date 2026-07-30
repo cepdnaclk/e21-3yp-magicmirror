@@ -18,8 +18,11 @@ class _AddReminderScreenState extends State<AddReminderScreen> {
   TimeOfDay? _selectedTime;
   bool _isSending = false;
 
-  final Color _accentColor = const Color(0xFFC4D300);
-  final Color _bgDark = const Color(0xFF0A0B10);
+  final Color _accentCyan = const Color(0xFFFFD86B);
+  final Color _accentPurple = const Color(0xFFF6C85F);
+  final Color _bgDark = const Color(0xFF07080E);
+  final Color _glassWhite = Colors.white.withOpacity(0.03);
+  final Color _glassBorder = Colors.white.withOpacity(0.06);
 
   Future<void> _sendReminder() async {
     if (_reasonController.text.isEmpty) {
@@ -101,7 +104,7 @@ class _AddReminderScreenState extends State<AddReminderScreen> {
         elevation: 0, 
         title: Text("NEW REMINDER", style: GoogleFonts.orbitron(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 2))
           .animate(onPlay: (controller) => controller.repeat(reverse: true))
-          .shimmer(duration: 2.seconds, color: _accentColor.withOpacity(0.5)), 
+          .shimmer(duration: 3.seconds, color: _accentCyan.withOpacity(0.5)), 
         iconTheme: const IconThemeData(color: Colors.white)
       ),
       body: Stack(
@@ -110,9 +113,9 @@ class _AddReminderScreenState extends State<AddReminderScreen> {
             top: -100, left: -100,
             child: Container(
               width: 400, height: 400,
-              decoration: BoxDecoration(shape: BoxShape.circle, gradient: RadialGradient(colors: [_accentColor.withOpacity(0.15), Colors.transparent])),
+              decoration: BoxDecoration(shape: BoxShape.circle, gradient: RadialGradient(colors: [_accentPurple.withOpacity(0.12), Colors.transparent])),
             ).animate(onPlay: (controller) => controller.repeat(reverse: true))
-             .scaleXY(end: 1.2, duration: 4.seconds, curve: Curves.easeInOut)
+             .scaleXY(end: 1.25, duration: 4.seconds, curve: Curves.easeInOut)
              .fadeIn(duration: 2.seconds),
           ),
           
@@ -126,30 +129,49 @@ class _AddReminderScreenState extends State<AddReminderScreen> {
                   const SizedBox(height: 10),
                   Row(
                     children: [
-                      Expanded(child: _glassButton(_selectedDate == null ? "Select Date" : "${_selectedDate!.month}/${_selectedDate!.day}/${_selectedDate!.year}", Icons.calendar_month, () => _pickDate())), 
+                      Expanded(child: _glassButton(_selectedDate == null ? "Select Date" : "${_selectedDate!.month}/${_selectedDate!.day}/${_selectedDate!.year}", Icons.calendar_month_rounded, () => _pickDate())), 
                       const SizedBox(width: 15), 
-                      Expanded(child: _glassButton(_selectedTime == null ? "Select Time" : _selectedTime!.format(context), Icons.access_time, () => _pickTime()))
+                      Expanded(child: _glassButton(_selectedTime == null ? "Select Time" : _selectedTime!.format(context), Icons.access_time_rounded, () => _pickTime()))
                     ]
                   ),
                   const SizedBox(height: 30),
                   _sectionTitle("REASON"),
                   const SizedBox(height: 10),
-                  _glassTextField(_reasonController, "e.g. Lab Session, Submit Project...", Icons.edit_note, maxLines: 3),
+                  _glassTextField(_reasonController, "e.g. Lab Session, Submit Project...", Icons.edit_note_rounded, maxLines: 3),
                   const SizedBox(height: 40),
-                  SizedBox(
+                  Container(
                     width: double.infinity, height: 55, 
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      gradient: LinearGradient(
+                        colors: [_accentPurple, _accentCyan],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: _accentCyan.withOpacity(0.2),
+                          blurRadius: 12,
+                          spreadRadius: 0,
+                          offset: const Offset(0, 4),
+                        )
+                      ],
+                    ),
                     child: ElevatedButton(
                       onPressed: _isSending ? null : _sendReminder, 
-                      style: ElevatedButton.styleFrom(backgroundColor: _accentColor, foregroundColor: Colors.black, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))), 
-                      child: _isSending ? const CircularProgressIndicator(color: Colors.black) : Text("SEND TO SCHEDULE", style: GoogleFonts.orbitron(fontSize: 16, fontWeight: FontWeight.bold))
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.transparent, 
+                        shadowColor: Colors.transparent,
+                        foregroundColor: Colors.white, 
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))
+                      ), 
+                      child: _isSending 
+                        ? const CircularProgressIndicator(color: Colors.white) 
+                        : Text("SEND TO SCHEDULE", style: GoogleFonts.orbitron(fontSize: 15, fontWeight: FontWeight.bold, letterSpacing: 1.5))
                     )
                   ).animate(onPlay: (controller) => controller.repeat(reverse: true))
-                   .boxShadow(
-                     begin: BoxShadow(color: _accentColor.withOpacity(0.2), blurRadius: 5, spreadRadius: 0),
-                     end: BoxShadow(color: _accentColor.withOpacity(0.6), blurRadius: 15, spreadRadius: 2),
-                     duration: 2.seconds,
-                   ),
-                ].animate(interval: 100.ms).fade(duration: 500.ms).slideY(begin: 0.1, end: 0, curve: Curves.easeOutQuad),
+                   .shimmer(duration: 3.seconds, color: Colors.white.withOpacity(0.2)),
+                ].animate(interval: 80.ms).fade(duration: 450.ms).slideY(begin: 0.08, end: 0, curve: Curves.easeOutQuad),
               ),
             ),
           ),
@@ -158,26 +180,36 @@ class _AddReminderScreenState extends State<AddReminderScreen> {
     );
   }
 
-  Widget _sectionTitle(String text) => Text(text, style: GoogleFonts.orbitron(color: Colors.white54, fontSize: 12, letterSpacing: 2, fontWeight: FontWeight.bold));
+  Widget _sectionTitle(String text) => Text(text, style: GoogleFonts.orbitron(color: Colors.white70, fontSize: 11, letterSpacing: 1.5, fontWeight: FontWeight.bold));
   
   Widget _glassTextField(TextEditingController controller, String hint, IconData icon, {int maxLines = 1}) => Container(
-    decoration: BoxDecoration(color: Colors.white.withOpacity(0.05), borderRadius: BorderRadius.circular(15), border: Border.all(color: Colors.white.withOpacity(0.1))), 
-    child: TextField(controller: controller, maxLines: maxLines, style: GoogleFonts.outfit(color: Colors.white), decoration: InputDecoration(hintText: hint, hintStyle: GoogleFonts.outfit(color: Colors.white38), border: InputBorder.none, contentPadding: const EdgeInsets.all(18)))
+    decoration: BoxDecoration(color: _glassWhite, borderRadius: BorderRadius.circular(16), border: Border.all(color: _glassBorder)), 
+    child: TextField(
+      controller: controller, 
+      maxLines: maxLines, 
+      style: GoogleFonts.outfit(color: Colors.white, fontSize: 15), 
+      decoration: InputDecoration(
+        hintText: hint, 
+        hintStyle: GoogleFonts.outfit(color: Colors.white24, fontSize: 14), 
+        border: InputBorder.none, 
+        contentPadding: const EdgeInsets.all(16)
+      )
+    )
   );
   
   Widget _glassButton(String label, IconData icon, VoidCallback onTap) => Material(
     color: Colors.transparent,
     child: InkWell(
       onTap: onTap, 
-      borderRadius: BorderRadius.circular(15), 
+      borderRadius: BorderRadius.circular(16), 
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 18), 
-        decoration: BoxDecoration(color: Colors.white.withOpacity(0.05), borderRadius: BorderRadius.circular(15), border: Border.all(color: Colors.white.withOpacity(0.1))), 
+        decoration: BoxDecoration(color: _glassWhite, borderRadius: BorderRadius.circular(16), border: Border.all(color: _glassBorder)), 
         child: Column(
           children: [
-            Icon(icon, color: _accentColor, size: 24), 
+            Icon(icon, color: _accentCyan, size: 24), 
             const SizedBox(height: 8), 
-            Text(label, style: GoogleFonts.outfit(color: Colors.white, fontSize: 14))
+            Text(label, style: GoogleFonts.outfit(color: Colors.white, fontSize: 13))
           ]
         )
       )

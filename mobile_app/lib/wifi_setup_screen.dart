@@ -24,7 +24,7 @@ class _WifiSetupScreenState extends State<WifiSetupScreen> {
   String? _successMessage;
 
   final Color _bgDark = const Color(0xFF07080E);
-  final Color _accentCyan = const Color(0xFF00F0FF);
+  final Color _accentCyan = const Color(0xFFFFD86B);
   final Color _glassWhite = Colors.white.withOpacity(0.03);
   final Color _glassBorder = Colors.white.withOpacity(0.06);
 
