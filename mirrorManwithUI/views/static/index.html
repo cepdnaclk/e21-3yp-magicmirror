@@ -72,7 +72,7 @@
 
         <div id="video-layer">
             <video id="mirror-video" loop muted playsinline>
-                <source src="static/idle.mp4" type="video/mp4">
+                <!-- src set dynamically by JS with cache-busting -->
             </video>
         </div>
 
@@ -129,6 +129,20 @@
     <!-- ================================================ -->
 
     <script>
+        // Cache-buster: forces the browser to re-fetch videos after every
+        // git pull / file change. Change this string any time you replace
+        // a video file and the browser still shows the old one.
+        const VER = Date.now();
+
+        // Helper: return a video URL with the cache-buster appended
+        function vidSrc(name) { return 'static/' + name + '?v=' + VER; }
+
+        // Set the default idle video on load (cache-busted)
+        (function() {
+            const v = document.getElementById('mirror-video');
+            v.src = vidSrc('idle.mp4');
+        })();
+
         function updateTime() {
             const now = new Date();
 
@@ -295,7 +309,7 @@
                     mirrorActive = true;
                     uiLayer.classList.add('hidden');
                     videoLayer.classList.add('visible');
-                    if (!v.src.includes('idle.mp4')) { v.src = 'static/idle.mp4'; }
+                    if (!v.src.includes('idle.mp4')) { v.src = vidSrc('idle.mp4'); }
                     v.play();
                     return;
                 }
@@ -308,17 +322,17 @@
                 }
                 if (payload === 'idle') {
                     if (mirrorActive) {
-                        if (!v.src.includes('idle.mp4')) { v.src = 'static/idle.mp4'; }
+                        if (!v.src.includes('idle.mp4')) { v.src = vidSrc('idle.mp4'); }
                         v.play();
                     }
                     return;
                 }
                 if (payload === 'thinking') {
-                    if (!v.src.includes('thinking.mp4')) { v.src = 'static/thinking.mp4'; v.play(); }
+                    if (!v.src.includes('thinking.mp4')) { v.src = vidSrc('thinking.mp4'); v.play(); }
                     return;
                 }
                 if (payload === 'talking') {
-                    if (!v.src.includes('talking.mp4')) { v.src = 'static/talking.mp4'; v.play(); }
+                    if (!v.src.includes('talking.mp4')) { v.src = vidSrc('talking.mp4'); v.play(); }
                     return;
                 }
                 return;
@@ -349,17 +363,17 @@
                 const state = payload.state;
                 if (state === 'idle') {
                     if (mirrorActive) {
-                        if (!v.src.includes('idle.mp4')) { v.src = 'static/idle.mp4'; }
+                        if (!v.src.includes('idle.mp4')) { v.src = vidSrc('idle.mp4'); }
                         v.play();
                     }
                     return;
                 }
                 if (state === 'talking') {
-                    if (!v.src.includes('talking.mp4')) { v.src = 'static/talking.mp4'; v.play(); }
+                    if (!v.src.includes('talking.mp4')) { v.src = vidSrc('talking.mp4'); v.play(); }
                     return;
                 }
                 if (state === 'thinking') {
-                    if (!v.src.includes('thinking.mp4')) { v.src = 'static/thinking.mp4'; v.play(); }
+                    if (!v.src.includes('thinking.mp4')) { v.src = vidSrc('thinking.mp4'); v.play(); }
                     return;
                 }
                 return;
