@@ -32,7 +32,7 @@ class TestSettings:
     def test_gemini_model_constant(self):
         """GEMINI_MODEL should be the expected model string."""
         from config.settings import GEMINI_MODEL
-        assert GEMINI_MODEL == "gemini-2.0-flash"
+        assert GEMINI_MODEL == "gemini-2.5-flash"
 
     def test_gemini_location_loaded(self):
         """GEMINI_LOCATION should be available and default to us-central1."""
