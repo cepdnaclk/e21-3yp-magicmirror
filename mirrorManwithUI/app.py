@@ -69,9 +69,9 @@ async def startup_event():
     asyncio.create_task(check_s3_inbox())
     asyncio.create_task(run_periodic_face_indexing())
     
-    # Start the Wi-Fi network provisioning monitor
-    from services.wifi_provisioner import network_monitor
-    asyncio.create_task(network_monitor(manager))
+    # Start the Wi-Fi network provisioning monitor (Disabled to prevent VNC disconnects)
+    # from services.wifi_provisioner import network_monitor
+    # asyncio.create_task(network_monitor(manager))
 
 @app.on_event("shutdown")
 async def shutdown_event():
