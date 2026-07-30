@@ -217,6 +217,26 @@
         let activeMsgTimer = null;
         let userHasBeenPresentWithBoxMsg = false;
 
+        let lastPresentTimestamp = 0;
+        let continuousPresentStartTime = 0;
+
+        function evaluatePresenceTimeout() {
+            if (userIsPresent && lastPresentTimestamp > 0 && (Date.now() - lastPresentTimestamp >= 15000)) {
+                console.log("🌙 [Presence System] 15s absence threshold reached! Blacking out UI.");
+                userIsPresent = false;
+
+                if (activeMessage && activeMsgState === 'NOTIFICATION_BOX' && userHasBeenPresentWithBoxMsg) {
+                    clearNotificationBox();
+                    activeMessage = null;
+                    activeMsgState = null;
+                    userHasBeenPresentWithBoxMsg = false;
+                }
+
+                updateBlackoutState();
+            }
+        }
+        setInterval(evaluatePresenceTimeout, 1000);
+
         function clearActiveMsgTimer() {
             if (activeMsgTimer) {
                 clearTimeout(activeMsgTimer);
@@ -391,19 +411,18 @@
 
             if (payload && payload.type === 'presence') {
                 const isPresent = payload.value === 'present';
+                const now = Date.now();
 
                 if (isPresent) {
-                    // Cancel absence timer if user returned / is detected
-                    if (absenceTimer) {
-                        clearTimeout(absenceTimer);
-                        absenceTimer = null;
-                    }
+                    lastPresentTimestamp = now;
 
-                    // If user is not yet present, start 5s continuous verification timer
-                    if (!userIsPresent && !presenceTimer) {
-                        presenceTimer = setTimeout(() => {
+                    if (!userIsPresent) {
+                        if (continuousPresentStartTime === 0) {
+                            continuousPresentStartTime = now;
+                        } else if (now - continuousPresentStartTime >= 5000) { // 5s continuous presence
+                            console.log("✅ [Presence System] 5s continuous presence confirmed! Waking up UI.");
                             userIsPresent = true;
-                            presenceTimer = null;
+                            continuousPresentStartTime = 0;
 
                             if (activeMessage && activeMsgState === 'FULLSCREEN') {
                                 clearActiveMsgTimer();
@@ -419,30 +438,24 @@
                             }
 
                             updateBlackoutState();
-                        }, 5000); // 5 seconds continuous presence requirement
+                        }
                     }
                 } else {
-                    // Cancel presence timer if user went absent before 5s was up
-                    if (presenceTimer) {
-                        clearTimeout(presenceTimer);
-                        presenceTimer = null;
-                    }
+                    // Reset continuous present timer on explicit absent
+                    continuousPresentStartTime = 0;
 
-                    // If user is currently present, start 15s absence grace timer
-                    if (userIsPresent && !absenceTimer) {
-                        absenceTimer = setTimeout(() => {
-                            userIsPresent = false;
-                            absenceTimer = null;
+                    if (userIsPresent && lastPresentTimestamp > 0 && (now - lastPresentTimestamp >= 15000)) {
+                        console.log("🌙 [Presence System] 15s absence threshold reached! Blacking out UI.");
+                        userIsPresent = false;
 
-                            if (activeMessage && activeMsgState === 'NOTIFICATION_BOX' && userHasBeenPresentWithBoxMsg) {
-                                clearNotificationBox();
-                                activeMessage = null;
-                                activeMsgState = null;
-                                userHasBeenPresentWithBoxMsg = false;
-                            }
+                        if (activeMessage && activeMsgState === 'NOTIFICATION_BOX' && userHasBeenPresentWithBoxMsg) {
+                            clearNotificationBox();
+                            activeMessage = null;
+                            activeMsgState = null;
+                            userHasBeenPresentWithBoxMsg = false;
+                        }
 
-                            updateBlackoutState();
-                        }, 15000); // 15 seconds continuous absence requirement
+                        updateBlackoutState();
                     }
                 }
 
