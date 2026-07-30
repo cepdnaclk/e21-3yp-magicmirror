@@ -64,16 +64,13 @@ def test_presence_absent_broadcasts_correct_websocket_event(presence_app):
         assert data["value"] == "absent"
 
 
-def test_presence_absent_deactivates_active_bot(presence_app):
-    """When user is absent, active bot must be deactivated and 'hide_mirror' sent."""
-    app, _ = presence_app
-    # Get mock_bot from registered dependencies
+def test_presence_confirmed_absent_deactivates_active_bot():
+    """When confirmed_absent is called, active bot must be deactivated and 'hide_mirror' sent."""
     mock_bot = MagicMock()
     mock_bot.is_active = True
     mock_bot.is_speaking = True
     manager = ConnectionManager()
 
-    # Re-register with active bot
     test_app = FastAPI()
     register_routes(test_app, mock_bot, manager)
     client = TestClient(test_app)
@@ -82,7 +79,7 @@ def test_presence_absent_deactivates_active_bot(presence_app):
         ws.receive_text()  # init presence
         ws.receive_text()  # show_mirror
 
-        client.get("/api/presence/absent")
+        client.get("/api/presence/confirmed_absent")
         msg = ws.receive_text()
         assert msg == "hide_mirror"
         assert mock_bot.is_active is False

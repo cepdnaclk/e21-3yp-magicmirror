@@ -217,6 +217,9 @@ class SinhalaBot:
                 # Run English + Sinhala recognition in parallel for accurate detection
                 user_text, is_sinhala = await self._recognize_best(audio_data)
 
+                if not self.is_active:
+                    break
+
                 if not user_text or not user_text.strip():
                     print("?? No speech detected, ignoring...")
                     continue
@@ -228,6 +231,9 @@ class SinhalaBot:
                     await asyncio.to_thread(self.speak, "Thank you, see you again!")
                     self.is_speaking = False
                     self.is_active = False
+                    break
+
+                if not self.is_active:
                     break
 
                 print("🤔 Mirror is thinking...")
@@ -265,6 +271,9 @@ class SinhalaBot:
                     contents=contents
                 )
 
+                if not self.is_active:
+                    break
+
                 if response.text:
                     print(f"🤖 Mirror: {response.text}")
 
@@ -276,6 +285,9 @@ class SinhalaBot:
                             parts=[types.Part.from_text(text=response.text)]
                         )
                     )
+
+                    if not self.is_active:
+                        break
 
                     await manager.broadcast(json.dumps({"type": "video", "state": "talking"}))
                     self.is_speaking = True

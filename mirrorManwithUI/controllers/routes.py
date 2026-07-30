@@ -11,28 +11,30 @@ from config.aws_config import get_s3_client
 def register_routes(app, bot, manager):
     """Attach all HTTP and WebSocket routes to the FastAPI app."""
 
+    async def stop_user_session():
+        """Helper to stop active Mirror Man bot and music on 15s confirmed absence."""
+        if bot.is_active:
+            print("[PRESENCE] 15s Absence Confirmed — deactivating Mirror Man bot.", flush=True)
+            bot.is_active = False
+            bot.is_speaking = False
+            await manager.broadcast("hide_mirror")
+
+        try:
+            from services.music_assistant import stop_music, is_music_playing, paused
+            if is_music_playing() or paused:
+                print("[PRESENCE] 15s Absence Confirmed — stopping music playback.", flush=True)
+                await stop_music(announce=False)
+        except Exception as e:
+            print(f"[PRESENCE] Error stopping music on confirmed absence: {e}", flush=True)
+
     @app.get("/api/presence/{status}")
     async def presence_trigger(status: str):
-        # Receives 'present' or 'absent' from the Serial Python script
-        # and broadcasts it to the Web UI via WebSockets.
-        if status.lower() == "absent":
-            # 1. Stop bot / deactivate Mirror Man if active
-            if bot.is_active:
-                print("[PRESENCE] User absent — deactivating Mirror Man bot.", flush=True)
-                bot.is_active = False
-                bot.is_speaking = False
-                await manager.broadcast("hide_mirror")
+        status_lower = status.lower()
 
-            # 2. Stop music if playing or paused
-            try:
-                from services.music_assistant import stop_music, is_music_playing, paused
-                if is_music_playing() or paused:
-                    print("[PRESENCE] User absent — stopping music playback.", flush=True)
-                    await stop_music(announce=False)
-            except Exception as e:
-                print(f"[PRESENCE] Error stopping music on absence: {e}", flush=True)
+        if status_lower == "confirmed_absent":
+            await stop_user_session()
 
-        await manager.broadcast(json.dumps({"type": "presence", "value": status}))
+        await manager.broadcast(json.dumps({"type": "presence", "value": status_lower}))
         return {"status": "success", "received": status}
 
     @app.get("/")

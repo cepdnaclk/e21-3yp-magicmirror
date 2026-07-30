@@ -259,6 +259,12 @@
                     userIsPresent = false;
                     continuousPresentStartTime = 0;
 
+                    // Deactivate Mirror Man avatar if active
+                    deactivateMirrorMan();
+
+                    // Notify backend that 15s absence is confirmed (stops bot & music)
+                    fetch('/api/presence/confirmed_absent').catch(() => {});
+
                     if (activeMessage && activeMsgState === 'NOTIFICATION_BOX' && userHasBeenPresentWithBoxMsg) {
                         clearNotificationBox();
                         activeMessage = null;
